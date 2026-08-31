@@ -81,7 +81,7 @@
       position: relative;
       z-index: 20;
       display: grid;
-      grid-template-columns: repeat(9, minmax(0, 1fr));
+      grid-template-columns: repeat(10, minmax(0, 1fr));
       gap: .5vw;
       min-width: 0;
       min-height: 0;
@@ -244,6 +244,11 @@
     #splash.hidden { display:none; }
     #splashTitle { color:#f4f1e9; font-size:clamp(64px,9.5vw,168px); font-weight:900; letter-spacing:.02em; text-shadow:0 2vh 5vh rgba(0,0,0,.7); }
     #readiness { position:absolute; bottom:5vh; left:50%; transform:translateX(-50%); color:#4a4c53; font-size:1.7vh; letter-spacing:.12em; white-space:nowrap; }
+    #qrScreen { position:fixed; inset:0 0 var(--bar-h) 0; z-index:29; display:none; flex-direction:column; align-items:center; background:#050506; }
+    #qrScreen.show { display:flex; }
+    #qrHeading { margin-top:6.5vh; color:#f4f1e9; font-size:clamp(30px,5.2vh,68px); font-weight:900; letter-spacing:.05em; line-height:1.55; text-align:center; }
+    #qrBox { margin-top:4.5vh; padding:2.4vh; border-radius:2.4vh; background:#fff; box-shadow:0 2vh 7vh rgba(0,0,0,.55); }
+    #qrBox img { display:block; width:min(44vh,56vw); height:auto; image-rendering:pixelated; }
     .operator-float { position:fixed; right:1vw; bottom:calc(var(--bar-h) + 1.1vh); z-index:60; display:flex; gap:.55vw; transition:opacity .4s ease; }
     .operator-float button { border:1px solid #2a2a2a; border-radius:8px; padding:.8vh .8vw; background:#111; color:#777; cursor:pointer; font-size:clamp(11px,1.2vh,14px); }
     body.operator-hidden .operator-float { opacity:0; pointer-events:none; }
@@ -268,6 +273,11 @@
   <div id="splash" aria-label="短劇標題頁">
     <div id="splashTitle">短劇《外遇》</div>
     <div id="readiness" role="status"></div>
+  </div>
+
+  <div id="qrScreen" aria-label="投稿掃碼畫面">
+    <div id="qrHeading">回答這些問題，讓我們更瞭解你吧！<br>請掃 QR Code</div>
+    <div id="qrBox"><img src="qrcode.png" alt="投稿頁 QR code"></div>
   </div>
 
   <main id="app">
@@ -351,6 +361,7 @@
     </section>
 
     <nav id="cueBar" aria-label="劇情 cue 控制列">
+      <button class="cue-btn" data-cue="qr"><kbd>Q</kbd>QR</button>
       <button class="cue-btn" data-cue="0"><kbd>0</kbd>Title</button>
       <button class="cue-btn" data-cue="1"><kbd>1</kbd>Map</button>
       <button class="cue-btn" data-cue="2"><kbd>2</kbd>LINE</button>
@@ -377,7 +388,7 @@
       <button id="clearBtn">清空回答庫</button>
     </div>
     <div class="panel-keys" id="connLine" hidden>連線：—</div>
-    <div class="panel-keys">0 標題頁 · 1–8 抽 cue · C 控制台 · F 全螢幕<br>同一 cue 再按一次＝換一個答案</div>
+    <div class="panel-keys">Q 掃碼頁 · 0 標題頁 · 1–8 抽 cue · C 控制台 · F 全螢幕<br>同一 cue 再按一次＝換一個答案</div>
   </aside>
 
   <script src="firebase-config.js"></script>
@@ -602,9 +613,21 @@
     renderShowTimer();
   }
 
+  const qrScreen = $('#qrScreen');
+  function showQrScreen() {
+    // 掃碼頁不啟動也不歸零計時器
+    splash.classList.add('hidden');
+    hideAllScenes();
+    currentCue = null;
+    qrScreen.classList.add('show');
+    updateCueButtons();
+  }
+  function hideQrScreen() { qrScreen.classList.remove('show'); }
+
   function showTitle() {
     currentCue = null;
     hideAllScenes();
+    hideQrScreen();
     attribution.textContent = '投影預覽 · 尚未抽題';
     controlPanel.classList.remove('open');
     splash.classList.remove('hidden');
@@ -616,6 +639,7 @@
     const model = buildSceneModel(cue, response);
     if (!model) return;
     splash.classList.add('hidden');
+    hideQrScreen();
     hideAllScenes();
 
     if (cue === 3) {
@@ -857,6 +881,7 @@
   }
 
   cueButtons.forEach((button) => button.addEventListener('click', () => {
+    if (button.dataset.cue === 'qr') { showQrScreen(); return; }
     const cue = Number(button.dataset.cue);
     if (cue === 0) showTitle();
     else drawCue(cue);
@@ -875,6 +900,7 @@
     if (event.repeat) return;
     if (/^[1-8]$/.test(event.key)) drawCue(Number(event.key));
     else if (event.key === '0') showTitle();
+    else if (event.key.toLowerCase() === 'q') showQrScreen();
     else if (event.key.toLowerCase() === 'c') togglePanel();
     else if (event.key.toLowerCase() === 'f') toggleFullscreen();
     else if (event.key === 'Escape') { controlPanel.classList.remove('open'); disarmClearButton(); }
