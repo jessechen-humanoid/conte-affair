@@ -1,0 +1,893 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>互動式短劇 · 投影 Demo</title>
+  <style>
+    :root {
+      --ink: #17181c;
+      --paper: #f5f3ee;
+      --muted: #9b9da5;
+      --line: rgba(255, 255, 255, .12);
+      --accent: #ff5b4d;
+      --bar-h: 9.5vh;
+      --credit-h: 7vh;
+      --answer-size: clamp(50px, 8.5vh, 110px);
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #090a0d;
+      color: var(--paper);
+      font-family: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+    }
+
+    button { font: inherit; }
+
+    #app {
+      display: grid;
+      grid-template-rows: var(--credit-h) 1fr var(--bar-h);
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: #0c0d11;
+    }
+
+    #attribution {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 0;
+      padding: 0 4vw;
+      border-bottom: 1px solid var(--line);
+      background: #090a0d;
+      color: #b6b8bf;
+      font-size: clamp(20px, 3vh, 36px);
+      font-weight: 650;
+      letter-spacing: .04em;
+      white-space: nowrap;
+    }
+
+    #showTimer {
+      position: absolute;
+      left: 2vw;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #75777f;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: .06em;
+    }
+
+    #stage {
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 50% 45%, rgba(255,255,255,.06), transparent 34%),
+        #0c0d11;
+    }
+
+    #cueBar {
+      position: relative;
+      z-index: 20;
+      display: grid;
+      grid-template-columns: repeat(9, minmax(0, 1fr));
+      gap: .5vw;
+      min-width: 0;
+      min-height: 0;
+      padding: 1.15vh 1vw;
+      border-top: 1px solid #202126;
+      background: #090a0d;
+      box-shadow: 0 -1.2vh 3vh rgba(0, 0, 0, .2);
+    }
+
+    .cue-btn {
+      position: relative;
+      min-width: 0;
+      border: 1px solid #2a2a2a;
+      border-radius: .85vh;
+      background: #111;
+      color: #676970;
+      cursor: pointer;
+      font-size: clamp(12px, 1.65vh, 20px);
+      font-weight: 750;
+      letter-spacing: .01em;
+      transition: transform 100ms ease, border-color 100ms ease, color 100ms ease, opacity 100ms ease;
+    }
+
+    .cue-btn:hover { color: #999ba2; border-color: #414249; }
+    .cue-btn:active { transform: translateY(1px); }
+    .cue-btn.complete::after {
+      content: '';
+      position: absolute;
+      top: .75vh;
+      right: .65vw;
+      width: .42em;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background: #5f6168;
+    }
+    .cue-btn.active {
+      color: #c6c8ce;
+      border-color: #686a72;
+      box-shadow: inset 0 0 0 1px #303138;
+    }
+
+    .cue-btn kbd {
+      display: inline-grid;
+      place-items: center;
+      min-width: 1.7em;
+      min-height: 1.7em;
+      margin-right: .25em;
+      border-radius: .5em;
+      background: #191a1e;
+      color: #85878e;
+      font-family: inherit;
+      font-size: .78em;
+    }
+
+    .scene {
+      position: absolute;
+      inset: 0;
+      display: none;
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+    }
+    .scene.active { display: block; animation: scene-in 110ms ease-out both; }
+    @keyframes scene-in { from { opacity: 0; } to { opacity: 1; } }
+    .answer {
+      max-width: 88%;
+      font-size: var(--answer-size);
+      font-weight: 900;
+      line-height: 1.12;
+      letter-spacing: -.035em;
+      overflow-wrap: anywhere;
+    }
+    .answer.compact { font-size: clamp(42px, 7vh, 88px); }
+
+    /* Cue 1 · Map */
+    .map-scene { background: #eae8df; color: #292c30; }
+    .map-bg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+    .map-pin { position: absolute; left: 50%; top: 30%; width: 11vh; height: 11vh; transform: translateX(-50%); fill: #ea4335; filter: drop-shadow(0 1vh 2vh rgba(0,0,0,.35)); }
+    .map-search { position:absolute; left:50%; top:3.5vh; transform:translateX(-50%); display:flex; align-items:center; gap:1.6vw; width:min(84vw,1500px); padding:2vh 2.2vw; border-radius:999px; background:#fff; box-shadow:0 1vh 3.2vh rgba(32,33,36,.3); }
+    .map-search svg { width:5.5vh; height:5.5vh; flex:none; fill:#ea4335; }
+    .map-answer { min-width:0; color:#202124; font-size:clamp(42px,6.6vh,88px); }
+
+    /* Cue 2 · LINE */
+    .line-scene { background: #91a9c5; color: #202328; }
+    .line-head { height: 11vh; display:flex; align-items:center; padding:0 5vw; background:rgba(245,247,250,.96); box-shadow:0 .5vh 2vh rgba(0,0,0,.12); }
+    .line-back { font-size:4.5vh; color:#4a89c7; margin-right:2.4vw; }
+    .line-avatar { width:7vh; aspect-ratio:1; border-radius:50%; display:grid; place-items:center; margin-right:1.5vw; background:#3f444b; color:#fff; font-size:2.8vh; font-weight:900; }
+    .line-contact strong { display:block; font-size:3vh; } .line-contact span { color:#8b8e95; font-size:1.8vh; }
+    .line-chat { position:absolute; inset:11vh 0 0; padding:7vh 7vw; }
+    .line-time { text-align:center; color:rgba(255,255,255,.8); font-size:2vh; margin-bottom:5vh; }
+    .bubble-row { display:flex; align-items:flex-end; justify-content:flex-end; gap:1.2vw; }
+    .read { color:rgba(255,255,255,.92); font-size:1.8vh; text-align:right; line-height:1.4; }
+    .line-bubble { position:relative; max-width:76vw; padding:3.4vh 3vw; border-radius:2.2vh 0 2.2vh 2.2vh; background:#8bea68; box-shadow:0 1vh 2.6vh rgba(42,59,78,.18); }
+    .line-bubble::after { content:''; position:absolute; right:-1.3vh; top:0; border-left:1.5vh solid #8bea68; border-bottom:1.5vh solid transparent; }
+    .line-answer { max-width:100%; color:#151719; }
+
+    /* Cue 3 · Photo（手機放大、下緣裁切，照片完整 contain） */
+    .album-scene { background:radial-gradient(circle at 50% 42%, #2e3036, #0a0b0e 72%); color:#fff; }
+    .phone { position:absolute; left:50%; top:2vh; transform:translateX(-50%); width:min(56vh,46vw); height:120vh; padding:1.1vh; border-radius:6vh 6vh 0 0; background:#050506; box-shadow:0 0 0 .55vh #43454b, 0 0 0 .8vh #17181b, 0 3vh 8vh rgba(0,0,0,.6); }
+    .phone-screen { position:relative; display:flex; flex-direction:column; width:100%; height:100%; overflow:hidden; border-radius:4.9vh 4.9vh 0 0; background:#000; }
+    .phone-island { position:absolute; top:1.2vh; left:50%; z-index:2; width:10vh; height:2.5vh; transform:translateX(-50%); border-radius:2vh; background:#0b0b0d; box-shadow:inset 0 0 0 1px #1c1d21; }
+    .phone-status { height:5.2vh; display:flex; align-items:center; justify-content:space-between; padding:0 3.4vh; color:#d8d8dc; font-size:1.9vh; flex:none; }
+    .album-head { height:6vh; display:flex; align-items:center; justify-content:space-between; padding:0 2.8vh; border-bottom:1px solid #1d1e22; flex:none; }
+    .album-head strong { font-size:2.6vh; } .album-head span { color:#7d9cff; font-size:2.1vh; }
+    .photo-wrap { flex:none; height:68vh; display:grid; place-items:center; padding:.7vh; }
+    #albumImage { max-width:100%; max-height:100%; object-fit:contain; }
+
+    /* Cue 4 · Search */
+    .search-scene { background:#fff; color:#202124; padding:7vh 8vw; }
+    .google-logo { font-size:clamp(38px,5vh,64px); font-weight:800; letter-spacing:-.08em; }
+    .google-logo span:nth-child(1),.google-logo span:nth-child(4){color:#4285f4}.google-logo span:nth-child(2),.google-logo span:nth-child(6){color:#ea4335}.google-logo span:nth-child(3){color:#fbbc05}.google-logo span:nth-child(5){color:#34a853}
+    .search-box { display:flex; align-items:center; gap:2vw; width:100%; margin-top:4vh; padding:2.8vh 3vw; border:1px solid #dfe1e5; border-radius:999px; box-shadow:0 .6vh 2vh rgba(60,64,67,.18); }
+    .search-glass { flex:none; width:5.2vh; height:5.2vh; fill:#8b9095; }
+    .search-kbd { flex:none; width:5.6vh; height:5.6vh; fill:#8b9095; }
+    .search-answer { max-width:calc(100% - 7vw); font-size:clamp(44px,7.3vh,94px); }
+    .fake-results { width:72%; margin:5vh 3vw; color:#70757a; }
+    .fake-results i { display:block; height:1.5vh; margin:1.6vh 0; border-radius:1vh; background:#eceff2; }
+    .fake-results i:nth-child(2){width:83%}.fake-results i:nth-child(3){width:65%}
+
+    /* Cue 5 · Letter */
+    .letter-scene { background: radial-gradient(circle at 40% 25%, #7c553a, #33231c 70%); color:#30251f; padding:5vh 10vw; }
+    .letter-paper { position:relative; width:100%; height:100%; padding:7vh 7vw; background:#f5edda; box-shadow:0 2vh 7vh rgba(0,0,0,.42); transform:rotate(-.5deg); }
+    .letter-paper::before { content:''; position:absolute; inset:0; opacity:.18; background:repeating-linear-gradient(0deg, transparent 0 4.2vh, #bda98e 4.2vh 4.35vh); }
+    .letter-dear,.letter-sign { position:relative; font-family:serif; font-size:4.6vh; font-weight:700; }
+    .letter-line { position:relative; display:flex; flex-wrap:wrap; align-items:baseline; justify-content:center; gap:.35em; margin:9vh auto 0; font-family:serif; font-size:clamp(48px,8.8vh,112px); font-weight:900; line-height:1.2; text-align:center; }
+    .letter-answer { max-width:75%; font:inherit; }
+    .letter-sign { margin-top:6.5vh; text-align:right; }
+
+    /* Cue 6 · Music */
+    .music-scene { background:linear-gradient(120deg,#311d3f 0%,#111218 60%,#090a0d); color:#fff; padding:3vh 7vw 16vh; }
+    .music-layout { display:grid; grid-template-columns:min(31vw,48vh) 1fr; gap:6vw; height:100%; align-items:center; }
+    .album-cover { aspect-ratio:1; border-radius:1.8vh; display:grid; place-items:center; background:linear-gradient(145deg,#ff6c54,#9e35ce 58%,#2739a5); box-shadow:0 3vh 8vh rgba(0,0,0,.45); }
+    .album-cover span { font-size:12vh; filter:drop-shadow(0 1vh 2vh rgba(0,0,0,.25)); }
+    .music-meta small { color:#b4b1bd; font-size:2.3vh; font-weight:800; letter-spacing:.18em; }
+    .music-answer { max-width:100%; margin:2vh 0 5vh; }
+    .progress { height:1vh; border-radius:1vh; background:#3c3d45; overflow:hidden; }.progress::before{content:'';display:block;width:43%;height:100%;background:#fff}
+    .player { display:flex; align-items:center; justify-content:center; gap:4vw; margin-top:3.5vh; font-size:4vh; }.player .play{width:7vh;aspect-ratio:1;border-radius:50%;display:grid;place-items:center;background:#fff;color:#111;font-size:3vh}
+
+    /* Cue 7 · Card */
+    .card-scene { background:radial-gradient(circle at 50% 45%,#35383d,#101114 70%); color:#161719; }
+    .business-card { position:absolute; left:50%; top:4.5vh; transform:translateX(-50%); display:flex; flex-direction:column; overflow:hidden; width:min(70vw,112vh); aspect-ratio:1.66; padding:4.2vh 4.5vw 4.2vh calc(4.5vw + 2vh); border-radius:1.2vh; background:#f7f4ec; box-shadow:0 4vh 9vh rgba(0,0,0,.55); }
+    .business-card::before { content:''; position:absolute; left:0; top:0; bottom:0; width:1.7vh; background:linear-gradient(180deg,#d6b76e,#8a6f3a); }
+    .card-watermark { position:absolute; right:-1vw; bottom:-10vh; font-family:serif; font-size:36vh; font-weight:900; line-height:1; color:rgba(138,111,58,.08); pointer-events:none; }
+    .card-top { position:relative; display:flex; align-items:center; gap:1.2vh; color:#8a6f3a; font-size:2.5vh; font-weight:800; letter-spacing:.32em; }
+    .card-diamond { color:#b7975a; font-size:2.2vh; letter-spacing:0; }
+    .card-mid { position:relative; margin:auto 0; }
+    .card-name { color:#17181b; font-size:clamp(56px,9.5vh,128px); font-weight:900; letter-spacing:.02em; line-height:1.1; overflow-wrap:anywhere; }
+    .card-rule { width:14vh; height:.55vh; margin:2.2vh 0; border-radius:1vh; background:#b7a26d; }
+    .card-title { max-width:100%; color:#45413a; font-size:clamp(38px,6vh,80px); font-weight:850; line-height:1.2; letter-spacing:.01em; overflow-wrap:anywhere; }
+    .card-foot { position:relative; display:flex; align-items:center; justify-content:space-between; border-top:1px solid #ddd6c7; padding-top:2.2vh; color:#7c766b; font-size:2.6vh; font-weight:650; letter-spacing:.06em; }
+
+    /* Cue 8 · Random */
+    .quote-scene { background:#030303; color:#f7f3e9; }
+    .quote-inner { position:absolute; inset:0; display:flex; justify-content:center; align-items:flex-start; padding:12vh 7vw 7vh; text-align:center; }
+    .quote-mark { position:absolute; top:2.5vh; left:6vw; color:#323238; font-family:serif; font-size:22vh; line-height:1; }
+    .quote-answer { max-width:92%; font-size:clamp(56px,10vh,132px); text-wrap:balance; }
+
+    /* 標題頁（即待機畫面）+ QQQQAAAA 風格操作者控制 */
+    #splash { position:fixed; inset:0 0 var(--bar-h) 0; z-index:30; display:flex; justify-content:center; align-items:flex-start; padding-top:14vh; background:#050506; }
+    #splash.hidden { display:none; }
+    #splashTitle { color:#f4f1e9; font-size:clamp(64px,9.5vw,168px); font-weight:900; letter-spacing:.02em; text-shadow:0 2vh 5vh rgba(0,0,0,.7); }
+    #readiness { position:absolute; bottom:5vh; left:50%; transform:translateX(-50%); color:#4a4c53; font-size:1.7vh; letter-spacing:.12em; white-space:nowrap; }
+    .operator-float { position:fixed; right:1vw; bottom:calc(var(--bar-h) + 1.1vh); z-index:60; display:flex; gap:.55vw; transition:opacity .4s ease; }
+    .operator-float button { border:1px solid #2a2a2a; border-radius:8px; padding:.8vh .8vw; background:#111; color:#777; cursor:pointer; font-size:clamp(11px,1.2vh,14px); }
+    body.operator-hidden .operator-float { opacity:0; pointer-events:none; }
+    #controlPanel { position:fixed; right:1vw; bottom:calc(var(--bar-h) + 5.8vh); z-index:70; display:none; width:min(320px,30vw); padding:1.8vh 1.2vw; border:1px solid #2a2a2a; border-radius:14px; background:#111; color:#ddd; box-shadow:0 2vh 5vh rgba(0,0,0,.45); }
+    #controlPanel.open { display:block; }
+    #controlPanel h2 { margin:0 0 1.2vh; font-size:1.8vh; }
+    .panel-actions { display:grid; gap:.8vh; }
+    .panel-actions button { width:100%; padding:1.05vh; border:1px solid #333; border-radius:8px; background:#080809; color:#999; cursor:pointer; font-size:1.45vh; font-weight:750; }
+    #clearBtn.armed { border-color:#7a3a34; color:#d09088; }
+    .panel-keys { margin-top:1.4vh; color:#5f6167; font-size:1.15vh; line-height:1.6; }
+    #cueMessage { position:fixed; left:50%; bottom:calc(var(--bar-h) + 1.2vh); z-index:65; transform:translateX(-50%); padding:.7vh 1vw; border:1px solid #342f24; border-radius:6px; background:#111; color:#8d7a47; font-size:1.3vh; opacity:0; transition:opacity .15s; pointer-events:none; }
+    #cueMessage.show { opacity:1; }
+
+    @media (max-width: 900px) {
+      .cue-btn kbd { display:none; }
+      .music-layout { grid-template-columns:29vw 1fr; gap:4vw; }
+      #controlPanel { width:38vw; }
+    }
+  </style>
+</head>
+<body>
+  <div id="splash" aria-label="短劇標題頁">
+    <div id="splashTitle">短劇《外遇》</div>
+    <div id="readiness" role="status"></div>
+  </div>
+
+  <main id="app">
+    <header id="attribution"><span id="showTimer">0:00</span><span id="attributionText">投影預覽 · 尚未抽題</span></header>
+
+    <section id="stage" aria-live="polite">
+      <article class="scene map-scene" data-scene="1" aria-label="地圖畫面">
+        <svg class="map-bg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <rect x="-600" y="-600" width="2800" height="2100" fill="#eae8df"/>
+          <g transform="rotate(-7 800 450)">
+            <rect x="140" y="80" width="310" height="220" rx="70" fill="#c7e6b4"/>
+            <rect x="1120" y="540" width="340" height="250" rx="80" fill="#c7e6b4"/>
+            <rect x="590" y="680" width="190" height="140" rx="50" fill="#d4ecc4"/>
+            <g fill="#e0ddd2" stroke="#d5d1c6" stroke-width="2">
+              <rect x="500" y="205" width="88" height="58"/><rect x="620" y="195" width="66" height="70"/><rect x="708" y="212" width="80" height="52"/>
+              <rect x="486" y="330" width="70" height="64"/><rect x="590" y="325" width="96" height="56"/><rect x="1010" y="200" width="82" height="62"/>
+              <rect x="1100" y="330" width="66" height="60"/><rect x="1190" y="196" width="92" height="58"/><rect x="300" y="470" width="84" height="60"/>
+              <rect x="420" y="600" width="72" height="64"/><rect x="950" y="480" width="90" height="58"/><rect x="820" y="600" width="78" height="62"/>
+            </g>
+            <path d="M-600 40H2200M-600 170H2200M-600 300H2200M-600 560H2200M-600 700H2200M-600 830H2200M60 -600V1500M240 -600V1500M440 -600V1500M620 -600V1500M800 -600V1500M1080 -600V1500M1260 -600V1500M1450 -600V1500" fill="none" stroke="#d8d5ca" stroke-width="18"/>
+            <path d="M-600 40H2200M-600 170H2200M-600 300H2200M-600 560H2200M-600 700H2200M-600 830H2200M60 -600V1500M240 -600V1500M440 -600V1500M620 -600V1500M800 -600V1500M1080 -600V1500M1260 -600V1500M1450 -600V1500" fill="none" stroke="#ffffff" stroke-width="12"/>
+            <path d="M-300 980L2000 90" fill="none" stroke="#d8d5ca" stroke-width="24"/>
+            <path d="M-300 980L2000 90" fill="none" stroke="#ffffff" stroke-width="17"/>
+            <path d="M-600 430H2200M940 -600V1500" fill="none" stroke="#eec45f" stroke-width="30"/>
+            <path d="M-600 430H2200M940 -600V1500" fill="none" stroke="#fbdc84" stroke-width="21"/>
+            <path d="M-600 1080 C 100 980 420 1090 780 1010 C 1120 930 1350 950 2200 830 L2200 1500 L-600 1500 Z" fill="#a9d3f0"/>
+            <text x="300" y="415" fill="#9aa0a6" font-size="26" font-weight="600">民生東路</text>
+            <text x="1150" y="545" fill="#9aa0a6" font-size="24" font-weight="600">和平街</text>
+            <text x="990" y="120" fill="#9aa0a6" font-size="24" font-weight="600">中華路一段</text>
+            <text x="205" y="200" fill="#5f8f57" font-size="26" font-weight="700">中央公園</text>
+            <text x="1200" y="670" fill="#5f8f57" font-size="24" font-weight="700">河濱公園</text>
+            <text x="1400" y="905" fill="#5a92c2" font-size="26" font-weight="700" font-style="italic">淡水河</text>
+          </g>
+        </svg>
+        <svg class="map-pin" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>
+        <div class="map-search"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg><div class="answer map-answer" data-answer="1"></div></div>
+      </article>
+
+      <article class="scene line-scene" data-scene="2" aria-label="LINE 對話畫面">
+        <div class="line-head"><span class="line-back">‹</span><div class="line-avatar">柏</div><div class="line-contact"><strong>神秘聯絡人</strong><span>上次上線：昨天晚上</span></div></div>
+        <div class="line-chat"><div class="line-time">昨天 晚上 11:47</div><div class="bubble-row"><div class="read">已讀<br>11:48</div><div class="line-bubble"><div class="answer line-answer" data-answer="2"></div></div></div></div>
+      </article>
+
+      <article class="scene album-scene" data-scene="3" aria-label="手機隱藏相簿畫面">
+        <div class="phone">
+          <div class="phone-screen">
+            <div class="phone-island"></div>
+            <div class="phone-status"><span>9:41</span><span>●●●　▰</span></div>
+            <div class="album-head"><span>‹ 相簿</span><strong>已隱藏</strong><span>選取</span></div>
+            <div class="photo-wrap"><img id="albumImage" alt="觀眾提供的最新照片"></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="scene search-scene" data-scene="4" aria-label="Google 搜尋畫面">
+        <div class="google-logo"><span>G</span><span>o</span><span>o</span><span>g</span><span>l</span><span>e</span></div>
+        <div class="search-box"><svg class="search-glass" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"/></svg><div class="answer search-answer" data-answer="4"></div><svg class="search-kbd" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 5H4c-1.1 0-1.99.9-1.99 2L2 17c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm-9 3h2v2h-2V8zm0 3h2v2h-2v-2zM8 8h2v2H8V8zm0 3h2v2H8v-2zm-1 2H5v-2h2v2zm0-3H5V8h2v2zm9 7H8v-2h8v2zm0-4h-2v-2h2v2zm0-3h-2V8h2v2zm3 3h-2v-2h2v2zm0-3h-2V8h2v2z"/></svg></div>
+        <div class="fake-results"><i></i><i></i><i></i></div>
+      </article>
+
+      <article class="scene letter-scene" data-scene="5" aria-label="告白書信畫面">
+        <div class="letter-paper"><div class="letter-dear">Dear 小寶貝：</div><div class="letter-line"><span>愛情就像</span><span class="letter-answer" data-answer="5"></span></div><div class="letter-sign">永遠愛你的大壞蛋</div></div>
+      </article>
+
+      <article class="scene music-scene" data-scene="6" aria-label="音樂串流畫面">
+        <div class="music-layout"><div class="album-cover"><span>♥</span></div><div class="music-meta"><small>我們婚禮上的歌</small><div class="answer music-answer" data-answer="6"></div><div class="progress"></div><div class="player"><span>↶</span><span>◀</span><span class="play">▶</span><span>▶</span><span>↷</span></div></div></div>
+      </article>
+
+      <article class="scene card-scene" data-scene="7" aria-label="客戶名片畫面">
+        <div class="business-card">
+          <div class="card-watermark">J</div>
+          <div class="card-top"><span class="card-diamond">◆</span>JOKESONEME STUDIO</div>
+          <div class="card-mid"><div class="card-name" id="cardNick"></div><div class="card-rule"></div><div class="card-title" data-answer="7"></div></div>
+          <div class="card-foot"><span>jokeonme.studio@gmail.com</span><span class="card-diamond">◆</span></div>
+        </div>
+      </article>
+
+      <article class="scene quote-scene" data-scene="8" aria-label="純文字金句畫面">
+        <div class="quote-mark">“</div><div class="quote-inner"><div class="answer quote-answer" data-answer="8"></div></div>
+      </article>
+    </section>
+
+    <nav id="cueBar" aria-label="劇情 cue 控制列">
+      <button class="cue-btn" data-cue="0"><kbd>0</kbd>Title</button>
+      <button class="cue-btn" data-cue="1"><kbd>1</kbd>Map</button>
+      <button class="cue-btn" data-cue="2"><kbd>2</kbd>LINE</button>
+      <button class="cue-btn" data-cue="3"><kbd>3</kbd>Photo</button>
+      <button class="cue-btn" data-cue="4"><kbd>4</kbd>Search</button>
+      <button class="cue-btn" data-cue="5"><kbd>5</kbd>Letter</button>
+      <button class="cue-btn" data-cue="6"><kbd>6</kbd>Music</button>
+      <button class="cue-btn" data-cue="7"><kbd>7</kbd>Card</button>
+      <button class="cue-btn" data-cue="8"><kbd>8</kbd>Random</button>
+    </nav>
+  </main>
+
+  <div id="cueMessage" role="status"></div>
+  <div class="operator-float" aria-label="操作者工具">
+    <button id="consoleBtn">⚙ 控制台 (C)</button>
+    <button id="fullscreenBtn">⛶ 全螢幕 (F)</button>
+  </div>
+  <aside id="controlPanel" aria-label="控制台">
+    <h2>控制台</h2>
+    <div class="panel-actions">
+      <button id="submitToggleBtn" hidden>投稿：—</button>
+      <button id="titleBtn">回到標題頁</button>
+      <button id="resetDrawBtn">重設全部抽選進度</button>
+      <button id="clearBtn">清空回答庫</button>
+    </div>
+    <div class="panel-keys" id="connLine" hidden>連線：—</div>
+    <div class="panel-keys">0 標題頁 · 1–8 抽 cue · C 控制台 · F 全螢幕<br>同一 cue 再按一次＝換一個答案</div>
+  </aside>
+
+  <script src="firebase-config.js"></script>
+  <script>
+  /* CORE_START */
+  const CUE_FIELDS = Object.freeze([
+    null,
+    'parentTrip',
+    'worldMessage',
+    'photo',
+    'shyQuestion',
+    'dislikedFood',
+    'song',
+    'impossibleJob',
+    'worldMessage',
+  ]);
+
+  function codePointLength(value) {
+    return Array.from(String(value ?? '')).length;
+  }
+
+  function isValidTextAnswer(value) {
+    const text = String(value ?? '').trim();
+    const length = codePointLength(text);
+    return length >= 1 && length <= 15;
+  }
+
+  const DEMO_RESPONSES = Object.freeze([
+    {
+      id: 'r01', table: 'B1', nick: '小雨',
+      song: '愛情轉移', dislikedFood: '香菜鍋',
+      photo: '../向上管理專場小工具/DSC07446.jpg',
+      worldMessage: '全部的人先去睡覺', parentTrip: '月球背面',
+      shyQuestion: '鼻毛會越剪越粗嗎', impossibleJob: '貓咪情緒翻譯師',
+    },
+    {
+      id: 'r02', table: 'B4', nick: '阿哲',
+      song: '倒帶', dislikedFood: '苦瓜披薩',
+      photo: '../向上管理專場小工具/DSC07452.jpg',
+      worldMessage: '每週都放三天假', parentTrip: '冰島藍湖',
+      shyQuestion: '為什麼自拍都不像我', impossibleJob: '雲朵命名顧問',
+    },
+    {
+      id: 'r03', table: 'B7', nick: '哈露',
+      song: '聽海', dislikedFood: '冷掉的薯條',
+      photo: '../向上管理專場小工具/0426_26subtitle_01.jpg',
+      worldMessage: '請對服務人員有禮貌', parentTrip: '撒哈拉沙漠',
+      shyQuestion: '大家真的每天洗頭嗎', impossibleJob: '電梯氣氛設計師',
+    },
+    {
+      id: 'r04', table: 'B9', nick: '可樂',
+      song: '戀愛ing', dislikedFood: '加熱小黃瓜',
+      photo: '../向上管理專場小工具/allen.png',
+      worldMessage: '不想上班也沒有錯', parentTrip: '南極企鵝村',
+      shyQuestion: '已讀不回要等幾天', impossibleJob: '週一消失工程師',
+    },
+    {
+      id: 'r05', table: 'B10', nick: '米糕',
+      song: '失戀無罪', dislikedFood: '葡萄乾炒飯',
+      photo: '../向上管理專場小工具/jesse.png',
+      worldMessage: '記得跟喜歡的人說', parentTrip: '東京迪士尼',
+      shyQuestion: '前任按讚代表什麼', impossibleJob: '前任記憶刪除師',
+    },
+    {
+      id: 'r06', table: 'B12', nick: '小Ｐ',
+      song: '我愛台妹', dislikedFood: '芹菜布丁',
+      photo: '../向上管理專場小工具/DSC07446.png',
+      worldMessage: '拜託不要再開會了', parentTrip: '火星渡假村',
+      shyQuestion: '薪水可以不要問嗎', impossibleJob: '老闆藉口鑑定師',
+    },
+    {
+      id: 'r07', table: 'B14', nick: '布丁',
+      song: '刻在我心底的名字', dislikedFood: '濕掉的吐司',
+      photo: '../向上管理專場小工具/DSC07452.png',
+      worldMessage: '快樂不需要有用', parentTrip: '瑞士巧克力村',
+      shyQuestion: '放屁要先說抱歉嗎', impossibleJob: '尷尬沉默主持人',
+    },
+    {
+      id: 'r08', table: 'B15', nick: '土豆',
+      song: '小幸運', dislikedFood: '美乃滋火鍋',
+      photo: '../支薪專場座位.jpg',
+      worldMessage: '今天先對自己好一點', parentTrip: '阿里山日出',
+      shyQuestion: '可以假裝沒看見嗎', impossibleJob: '會議結論考古學家',
+    },
+  ]);
+
+  function shuffled(items, rng = Math.random) {
+    const output = items.slice();
+    for (let index = output.length - 1; index > 0; index -= 1) {
+      const swapIndex = Math.floor(rng() * (index + 1));
+      [output[index], output[swapIndex]] = [output[swapIndex], output[index]];
+    }
+    return output;
+  }
+
+  function createCueDecks(responses, cueFields = CUE_FIELDS, rng = Math.random, options = {}) {
+    const queues = new Map();
+    const photoReadyIds = options.photoReadyIds ?? null;
+
+    function eligible(cue) {
+      const field = cueFields[cue];
+      if (!field) return [];
+      return responses.filter((response) => {
+        const value = response[field];
+        if (cue === 3) {
+          const hasPhoto = typeof value === 'string' && value.trim().length > 0;
+          return hasPhoto && (!photoReadyIds || photoReadyIds.has(response.id));
+        }
+        return isValidTextAnswer(value);
+      });
+    }
+
+    function refill(cue) {
+      const queue = shuffled(eligible(cue), rng);
+      queues.set(cue, queue);
+      return queue;
+    }
+
+    return Object.freeze({
+      draw(cue) {
+        let queue = queues.get(cue);
+        if (!queue || queue.length === 0) queue = refill(cue);
+        if (queue.length === 0) return null;
+        return queue.pop();
+      },
+      remaining(cue) {
+        return queues.get(cue)?.length ?? 0;
+      },
+      reset(cue) {
+        queues.delete(cue);
+      },
+    });
+  }
+
+  const SCENE_NAMES = Object.freeze([null, 'map', 'line', 'album', 'search', 'letter', 'music', 'card', 'quote']);
+
+  function buildSceneModel(cue, response) {
+    const scene = SCENE_NAMES[cue];
+    const field = CUE_FIELDS[cue];
+    if (!scene || !field || !response) return null;
+    return Object.freeze({ cue, scene, answer: response[field], responseId: response.id });
+  }
+  /* CORE_END */
+
+  // firebase-config.js 未載入或仍為佔位值 → demo 模式（吃 DEMO_RESPONSES，不連網）
+  const FIREBASE_READY = typeof isFirebaseConfigured === 'function' && isFirebaseConfigured();
+
+  const $ = (selector) => document.querySelector(selector);
+  const stage = $('#stage');
+  const splash = $('#splash');
+  const attribution = $('#attributionText');
+  const showTimerEl = $('#showTimer');
+  const cueMessage = $('#cueMessage');
+  const controlPanel = $('#controlPanel');
+  const clearBtn = $('#clearBtn');
+  const cueButtons = [...document.querySelectorAll('.cue-btn')];
+  const scenes = [...document.querySelectorAll('.scene')];
+  const photoReadyIds = new Set();
+  const completedCues = new Set();
+  const preloadedPhotos = new Map();
+  const responsesById = new Map();
+  // live 模式下 responses 是同一個陣列被增量維護（decks 的洗牌池 refill 時閉包引用它）
+  let responses = FIREBASE_READY ? [] : DEMO_RESPONSES.slice();
+  let decks = createCueDecks(responses, CUE_FIELDS, Math.random, { photoReadyIds });
+  let currentCue = null;
+  let messageTimer = null;
+  let operatorTimer = null;
+  let clearArmTimer = null;
+  let photoPreloadComplete = false;
+  let pendingPhotos = 0;
+  let initialSyncDone = !FIREBASE_READY;
+  let connected = null;
+  let submitOpenState = null;
+  let live = null; // { dbm, db, responsesRef, controlRef }
+
+  function showMessage(message) {
+    clearTimeout(messageTimer);
+    cueMessage.textContent = message;
+    cueMessage.classList.add('show');
+    messageTimer = setTimeout(() => cueMessage.classList.remove('show'), 2400);
+  }
+
+  function setAnswer(element, value) {
+    if (!element) return;
+    const text = String(value ?? '');
+    element.textContent = text;
+    element.classList.toggle('compact', codePointLength(text) >= 12);
+  }
+
+  function updateCueButtons() {
+    cueButtons.forEach((button) => {
+      const cue = Number(button.dataset.cue);
+      button.classList.toggle('active', cue === currentCue);
+      button.classList.toggle('complete', completedCues.has(cue));
+      button.setAttribute('aria-pressed', cue === currentCue ? 'true' : 'false');
+    });
+  }
+
+  function hideAllScenes() {
+    scenes.forEach((scene) => scene.classList.remove('active'));
+  }
+
+  // 演出計時器：離開標題頁抽第一個 cue 起算，回標題頁歸零（演員從感謝列左側偷看演了多久）
+  let showTimerStart = null;
+  let showTimerInterval = null;
+  function renderShowTimer() {
+    const elapsedSeconds = showTimerStart ? Math.floor((Date.now() - showTimerStart) / 1000) : 0;
+    const minutes = Math.floor(elapsedSeconds / 60);
+    const seconds = String(elapsedSeconds % 60).padStart(2, '0');
+    showTimerEl.textContent = `${minutes}:${seconds}`;
+  }
+  function startShowTimer() {
+    if (showTimerStart) return;
+    showTimerStart = Date.now();
+    renderShowTimer();
+    showTimerInterval = setInterval(renderShowTimer, 1000);
+  }
+  function resetShowTimer() {
+    clearInterval(showTimerInterval);
+    showTimerInterval = null;
+    showTimerStart = null;
+    renderShowTimer();
+  }
+
+  function showTitle() {
+    currentCue = null;
+    hideAllScenes();
+    attribution.textContent = '投影預覽 · 尚未抽題';
+    controlPanel.classList.remove('open');
+    splash.classList.remove('hidden');
+    resetShowTimer();
+    updateCueButtons();
+  }
+
+  function renderScene(cue, response) {
+    const model = buildSceneModel(cue, response);
+    if (!model) return;
+    splash.classList.add('hidden');
+    hideAllScenes();
+
+    if (cue === 3) {
+      const readyImage = preloadedPhotos.get(response.id);
+      if (readyImage) $('#albumImage').src = readyImage.src;
+    } else {
+      setAnswer(document.querySelector(`[data-answer="${cue}"]`), model.answer);
+    }
+    if (cue === 7) {
+      $('#cardNick').textContent = response.nick;
+    }
+
+    const nextScene = document.querySelector(`[data-scene="${cue}"]`);
+    nextScene.classList.add('active');
+    attribution.textContent = `感謝 ${response.table} 桌的 ${response.nick} 提供答案`;
+    startShowTimer();
+    currentCue = cue;
+    completedCues.add(cue);
+    updateCueButtons();
+  }
+
+  function drawCue(cue) {
+    const response = decks.draw(cue);
+    if (!response) {
+      const emptyMessage = cue === 3
+        ? (photoPreloadComplete ? '此題沒有可抽答案' : '照片準備中，請再按一次')
+        : '此題沒有可抽答案';
+      showMessage(emptyMessage);
+      return;
+    }
+    renderScene(cue, response);
+  }
+
+  function resetDrawProgress() {
+    decks = createCueDecks(responses, CUE_FIELDS, Math.random, { photoReadyIds });
+    completedCues.clear();
+    showTitle();
+    showMessage('已重設全部抽選進度');
+  }
+
+  function disarmClearButton() {
+    clearTimeout(clearArmTimer);
+    clearBtn.classList.remove('armed');
+    clearBtn.textContent = '清空回答庫';
+  }
+
+  async function requestClearResponses() {
+    if (!clearBtn.classList.contains('armed')) {
+      clearBtn.classList.add('armed');
+      clearBtn.textContent = '確定清空？再按一次';
+      clearTimeout(clearArmTimer);
+      clearArmTimer = setTimeout(disarmClearButton, 4000);
+      return;
+    }
+    disarmClearButton();
+    if (FIREBASE_READY) {
+      if (!live) { showMessage('尚未連線，無法清空'); return; }
+      clearBtn.disabled = true;
+      const cleared = await clearLiveResponses();
+      clearBtn.disabled = false;
+      if (!cleared) return;
+    }
+    responsesById.clear();
+    responses.length = 0;
+    photoReadyIds.clear();
+    preloadedPhotos.clear();
+    decks = createCueDecks(responses, CUE_FIELDS, Math.random, { photoReadyIds });
+    completedCues.clear();
+    showTitle();
+    updateReadiness();
+    showMessage('已清空回答庫');
+  }
+
+  function updateReadiness() {
+    const readiness = $('#readiness');
+    if (FIREBASE_READY && !initialSyncDone) {
+      readiness.textContent = '連線中…';
+      return;
+    }
+    const withPhoto = responses.filter((r) => typeof r.photo === 'string' && r.photo.length > 0).length;
+    const prefix = FIREBASE_READY ? '' : 'DEMO · ';
+    const offline = FIREBASE_READY && connected === false ? '（離線，用已載入的資料照演）' : '';
+    readiness.textContent = `${prefix}回答 ${responses.length} 筆 · 照片 ${photoReadyIds.size}/${withPhoto} 已就緒${offline}`;
+    $('#connLine').textContent = `連線：${connected === false ? '中斷' : '正常'} · 投稿：${submitOpenState === true ? '開啟中' : submitOpenState === false ? '已關閉' : '—'}`;
+  }
+
+  async function preloadPhoto(response) {
+    pendingPhotos += 1;
+    const image = new Image();
+    image.decoding = 'async';
+    image.src = response.photo;
+    try {
+      if (!image.complete) await new Promise((resolve, reject) => {
+        image.onload = resolve;
+        image.onerror = reject;
+      });
+      if (image.decode) await image.decode();
+      if (!image.naturalWidth) throw new Error('empty image');
+      // 清空回答庫後才完成的 decode 不得把自己加回就緒名單
+      if (responses.some((r) => r.id === response.id)) {
+        photoReadyIds.add(response.id);
+        preloadedPhotos.set(response.id, image);
+      }
+    } catch (_) {
+      photoReadyIds.delete(response.id);
+    }
+    pendingPhotos -= 1;
+    if (pendingPhotos === 0) photoPreloadComplete = true;
+    updateReadiness();
+  }
+
+  if (!FIREBASE_READY) {
+    Promise.all(DEMO_RESPONSES.map(preloadPhoto)).then(() => {
+      photoPreloadComplete = true;
+      if (photoReadyIds.size === 0) showMessage('示範照片無法載入');
+      updateReadiness();
+    });
+  }
+
+  /* ── Live 模式：SDK 常駐連線（只有投影頁佔線，觀眾頁走 REST）── */
+  function upsertLiveResponse(id, value) {
+    const existing = responsesById.get(id);
+    if (existing) {
+      const photoChanged = existing.photo !== value.photo;
+      Object.assign(existing, value, { id });
+      if (photoChanged) {
+        photoReadyIds.delete(id);
+        preloadedPhotos.delete(id);
+        photoPreloadComplete = false;
+        preloadPhoto(existing);
+      }
+    } else {
+      const record = { id, ...value };
+      responsesById.set(id, record);
+      responses.push(record);
+      photoPreloadComplete = false;
+      preloadPhoto(record);
+    }
+    updateReadiness();
+  }
+
+  function removeLiveResponse(id) {
+    responsesById.delete(id);
+    const index = responses.findIndex((r) => r.id === id);
+    if (index >= 0) responses.splice(index, 1);
+    photoReadyIds.delete(id);
+    preloadedPhotos.delete(id);
+    updateReadiness();
+  }
+
+  async function initLiveData() {
+    updateReadiness();
+    try {
+      const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
+      const dbm = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js');
+      const app = initializeApp(firebaseConfig);
+      const db = dbm.getDatabase(app);
+      const responsesRef = dbm.ref(db, `rooms/${ROOM}/responses`);
+      live = { dbm, db, responsesRef };
+
+      dbm.onChildAdded(responsesRef, (snap) => upsertLiveResponse(snap.key, snap.val()));
+      dbm.onChildChanged(responsesRef, (snap) => upsertLiveResponse(snap.key, snap.val()));
+      dbm.onChildRemoved(responsesRef, (snap) => removeLiveResponse(snap.key));
+      dbm.onValue(dbm.ref(db, '.info/connected'), (snap) => {
+        connected = snap.val() === true;
+        updateReadiness();
+      });
+      dbm.onValue(dbm.ref(db, `rooms/${ROOM}/control/submitOpen`), (snap) => {
+        submitOpenState = snap.val() === true;
+        const toggle = $('#submitToggleBtn');
+        toggle.hidden = false;
+        toggle.textContent = submitOpenState ? '投稿：開啟中（按此關閉）' : '投稿：已關閉（按此開啟）';
+        updateReadiness();
+      });
+
+      // ready 閘門：一次性讀取，3 秒沒回來就強制開閘（斷網兜底）
+      await Promise.race([
+        dbm.get(responsesRef).catch(() => {}),
+        new Promise((resolve) => setTimeout(resolve, 3000)),
+      ]);
+    } catch (_) {
+      showMessage('Firebase 連線失敗，畫面維持可操作');
+    }
+    initialSyncDone = true;
+    if (pendingPhotos === 0) photoPreloadComplete = true;
+    updateReadiness();
+  }
+
+  async function toggleSubmitOpen() {
+    if (!live) return;
+    try {
+      await live.dbm.set(live.dbm.ref(live.db, `rooms/${ROOM}/control/submitOpen`), !(submitOpenState === true));
+    } catch (_) {
+      showMessage('切換投稿開關失敗，請重試');
+    }
+  }
+
+  async function clearLiveResponses() {
+    const { dbm, db, responsesRef } = live;
+    const clearArmedRef = dbm.ref(db, `rooms/${ROOM}/control/clearArmed`);
+    try {
+      await dbm.set(clearArmedRef, true);
+      const snapshot = await dbm.get(responsesRef);
+      const data = snapshot.val();
+      if (data) {
+        const archiveRef = dbm.push(dbm.ref(db, `rooms/${ROOM}/archive`));
+        await dbm.set(archiveRef, { clearedAt: dbm.serverTimestamp(), responses: data });
+      }
+      await dbm.remove(responsesRef);
+      await dbm.set(clearArmedRef, false);
+      return true;
+    } catch (_) {
+      try { await dbm.set(clearArmedRef, false); } catch (__) {}
+      showMessage('清空失敗，資料未動，請重試');
+      return false;
+    }
+  }
+
+  function togglePanel() {
+    controlPanel.classList.toggle('open');
+    if (!controlPanel.classList.contains('open')) disarmClearButton();
+    showOperator();
+    if (!controlPanel.classList.contains('open')) scheduleOperatorHide();
+  }
+
+  function toggleFullscreen() {
+    if (!document.documentElement.requestFullscreen) return;
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    else document.documentElement.requestFullscreen().catch(() => {});
+  }
+
+  function showOperator() { document.body.classList.remove('operator-hidden'); }
+  function hideOperator() {
+    if (!controlPanel.classList.contains('open')) document.body.classList.add('operator-hidden');
+  }
+  function scheduleOperatorHide() {
+    clearTimeout(operatorTimer);
+    operatorTimer = setTimeout(hideOperator, 3000);
+  }
+
+  cueButtons.forEach((button) => button.addEventListener('click', () => {
+    const cue = Number(button.dataset.cue);
+    if (cue === 0) showTitle();
+    else drawCue(cue);
+  }));
+  $('#consoleBtn').addEventListener('click', togglePanel);
+  $('#fullscreenBtn').addEventListener('click', toggleFullscreen);
+  $('#submitToggleBtn').addEventListener('click', toggleSubmitOpen);
+  $('#titleBtn').addEventListener('click', () => { showTitle(); scheduleOperatorHide(); });
+  $('#resetDrawBtn').addEventListener('click', () => { resetDrawProgress(); scheduleOperatorHide(); });
+  clearBtn.addEventListener('click', requestClearResponses);
+
+  if (!document.documentElement.requestFullscreen) $('#fullscreenBtn').hidden = true;
+
+  addEventListener('mousemove', () => { showOperator(); scheduleOperatorHide(); });
+  addEventListener('keydown', (event) => {
+    if (event.repeat) return;
+    if (/^[1-8]$/.test(event.key)) drawCue(Number(event.key));
+    else if (event.key === '0') showTitle();
+    else if (event.key.toLowerCase() === 'c') togglePanel();
+    else if (event.key.toLowerCase() === 'f') toggleFullscreen();
+    else if (event.key === 'Escape') { controlPanel.classList.remove('open'); disarmClearButton(); }
+  });
+  document.addEventListener('fullscreenchange', () => {
+    if (document.fullscreenElement) hideOperator();
+    else { showOperator(); scheduleOperatorHide(); }
+  });
+
+  showTitle();
+  if (FIREBASE_READY) initLiveData();
+  updateReadiness();
+  scheduleOperatorHide();
+  </script>
+</body>
+</html>
