@@ -31,6 +31,9 @@
 
     button { font: inherit; }
 
+    :root { --yoff: 0vh; }
+    #app, #splash, #qrScreen { transform: translateY(var(--yoff)); }
+
     #app {
       display: grid;
       grid-template-rows: var(--credit-h) 1fr var(--bar-h);
@@ -246,10 +249,10 @@
     #readiness { position:absolute; bottom:5vh; left:50%; transform:translateX(-50%); color:#4a4c53; font-size:1.7vh; letter-spacing:.12em; white-space:nowrap; }
     #qrScreen { position:fixed; inset:0 0 var(--bar-h) 0; z-index:29; display:none; background:#050506; }
     #qrScreen.show { display:block; }
-    .qr-row { display:flex; justify-content:center; align-items:center; gap:3.5vw; padding:2.5vh 4vw 0; }
+    .qr-row { display:flex; justify-content:center; align-items:center; gap:3vw; padding:6vh 4vw 0; }
     #qrScreen .qr-tile { flex:none; padding:1.6vh; border-radius:1.8vh; background:#fff; box-shadow:0 1.5vh 5vh rgba(0,0,0,.55); }
     #qrScreen .qr-tile img { display:block; width:min(24vh,16vw); height:auto; image-rendering:pixelated; }
-    #qrHeading { max-width:44vw; color:#f4f1e9; font-size:clamp(26px,4.6vh,58px); font-weight:900; letter-spacing:.05em; line-height:1.5; text-align:center; }
+    #qrHeading { color:#f4f1e9; font-size:clamp(24px,4.3vh,56px); font-weight:900; letter-spacing:.05em; line-height:1.6; text-align:center; white-space:nowrap; }
     .operator-float { position:fixed; right:1vw; bottom:calc(var(--bar-h) + 1.1vh); z-index:60; display:flex; gap:.55vw; transition:opacity .4s ease; }
     .operator-float button { border:1px solid #2a2a2a; border-radius:8px; padding:.8vh .8vw; background:#111; color:#777; cursor:pointer; font-size:clamp(11px,1.2vh,14px); }
     body.operator-hidden .operator-float { opacity:0; pointer-events:none; }
@@ -279,7 +282,7 @@
   <div id="qrScreen" aria-label="投稿掃碼畫面">
     <div class="qr-row">
       <div class="qr-tile"><img src="qrcode.png" alt="投稿頁 QR code"></div>
-      <div id="qrHeading">回答這些問題，讓我們更瞭解你吧！<br>請掃 QR Code</div>
+      <div id="qrHeading">回答這些問題，讓我們瞭解你吧！<br>請掃 QR Code</div>
       <div class="qr-tile"><img src="qrcode.png" alt="投稿頁 QR code"></div>
     </div>
   </div>
@@ -392,7 +395,7 @@
       <button id="clearBtn">清空回答庫</button>
     </div>
     <div class="panel-keys" id="connLine" hidden>連線：—</div>
-    <div class="panel-keys">Q 掃碼頁 · 0 標題頁 · 1–8 抽 cue · C 控制台 · F 全螢幕<br>同一 cue 再按一次＝換一個答案</div>
+    <div class="panel-keys">Q 掃碼頁 · 0 標題頁 · 1–8 抽 cue · C 控制台 · F 全螢幕<br>↑↓ 投影對位（Shift ×5、Shift+0 歸位）· 同一 cue 再按一次＝換答案</div>
   </aside>
 
   <script src="firebase-config.js"></script>
@@ -875,6 +878,15 @@
     else document.documentElement.requestFullscreen().catch(() => {});
   }
 
+  /* 投影對位：↑↓ 微調 1vh（按住可連續）、Shift+↑↓ 一次 5vh、Shift+0 歸位（照 QQQQAAAA／開場彈幕慣例） */
+  let yOffVh = Number(localStorage.getItem('improv-stage-yoff') || 0);
+  function applyYOff() {
+    yOffVh = Math.max(-60, Math.min(60, yOffVh));
+    document.documentElement.style.setProperty('--yoff', yOffVh + 'vh');
+    try { localStorage.setItem('improv-stage-yoff', yOffVh); } catch (_) {}
+  }
+  applyYOff();
+
   function showOperator() { document.body.classList.remove('operator-hidden'); }
   function hideOperator() {
     if (!controlPanel.classList.contains('open')) document.body.classList.add('operator-hidden');
@@ -901,6 +913,15 @@
 
   addEventListener('mousemove', () => { showOperator(); scheduleOperatorHide(); });
   addEventListener('keydown', (event) => {
+    const isUp = event.key === 'ArrowUp' || event.key === 'Up';
+    const isDown = event.key === 'ArrowDown' || event.key === 'Down';
+    if (isUp || isDown) { // 對位鍵允許按住連發
+      event.preventDefault();
+      yOffVh += (isUp ? -1 : 1) * (event.shiftKey ? 5 : 1);
+      applyYOff();
+      return;
+    }
+    if (event.shiftKey && event.code === 'Digit0') { yOffVh = 0; applyYOff(); showMessage('畫面位移歸零'); return; }
     if (event.repeat) return;
     if (/^[1-8]$/.test(event.key)) drawCue(Number(event.key));
     else if (event.key === '0') showTitle();
