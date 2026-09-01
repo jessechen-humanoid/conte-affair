@@ -661,6 +661,7 @@
 
     const nextScene = document.querySelector(`[data-scene="${cue}"]`);
     nextScene.classList.add('active');
+    if (SOUND_CUES.has(cue)) playSting();
     attribution.textContent = `感謝 ${response.table} 桌的 ${response.nick} 提供答案`;
     startShowTimer();
     currentCue = cue;
@@ -878,6 +879,37 @@
     else document.documentElement.requestFullscreen().catch(() => {});
   }
 
+  /* 威嚇音效：cue 1/2/3/4/7 抽選成功時播放。開頁預載＋解碼（零延遲、斷網照響）、
+     連抽蓋播、載入失敗靜默降級（音效壞了不能影響演出） */
+  const SOUND_CUES = new Set([1, 2, 3, 4, 7]);
+  const sting = { ctx: null, buffer: null, source: null, plays: 0 };
+  async function initSting() {
+    try {
+      const res = await fetch('音效/威嚇音效.mp3');
+      if (!res.ok) throw new Error('sting fetch failed');
+      const bytes = await res.arrayBuffer();
+      sting.ctx = new (window.AudioContext || window.webkitAudioContext)();
+      sting.buffer = await sting.ctx.decodeAudioData(bytes);
+    } catch (_) {
+      sting.buffer = null;
+    }
+  }
+  function unlockSting() {
+    if (sting.ctx && sting.ctx.state === 'suspended') sting.ctx.resume().catch(() => {});
+  }
+  function playSting() {
+    if (!sting.ctx || !sting.buffer) return;
+    unlockSting();
+    try { if (sting.source) sting.source.stop(); } catch (_) {}
+    const source = sting.ctx.createBufferSource();
+    source.buffer = sting.buffer;
+    source.connect(sting.ctx.destination);
+    source.start();
+    sting.source = source;
+    sting.plays += 1;
+  }
+  initSting();
+
   /* 投影對位：↑↓ 微調 1vh（按住可連續）、Shift+↑↓ 一次 5vh、Shift+0 歸位（照 QQQQAAAA／開場彈幕慣例） */
   let yOffVh = Number(localStorage.getItem('improv-stage-yoff') || 0);
   function applyYOff() {
@@ -913,6 +945,7 @@
 
   addEventListener('mousemove', () => { showOperator(); scheduleOperatorHide(); });
   addEventListener('keydown', (event) => {
+    unlockSting(); // 瀏覽器自動播放政策：首次手勢解鎖音訊
     const isUp = event.key === 'ArrowUp' || event.key === 'Up';
     const isDown = event.key === 'ArrowDown' || event.key === 'Down';
     if (isUp || isDown) { // 對位鍵允許按住連發
