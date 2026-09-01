@@ -189,8 +189,9 @@
     .phone-status { height:5.2vh; display:flex; align-items:center; justify-content:space-between; padding:0 3.4vh; color:#d8d8dc; font-size:1.9vh; flex:none; }
     .album-head { height:6vh; display:flex; align-items:center; justify-content:space-between; padding:0 2.8vh; border-bottom:1px solid #1d1e22; flex:none; }
     .album-head strong { font-size:2.6vh; } .album-head span { color:#7d9cff; font-size:2.1vh; }
-    .photo-wrap { flex:none; height:68vh; display:grid; place-items:center; padding:.7vh; }
+    .photo-wrap { flex:none; height:68vh; display:flex; align-items:center; justify-content:center; padding:.7vh; }
     #albumImage { max-width:100%; max-height:100%; object-fit:contain; }
+    #albumImage.portrait { width:100%; height:100%; object-fit:cover; object-position:center; }
 
     /* Cue 4 · Search */
     .search-scene { background:#fff; color:#202124; padding:7vh 8vw; }
@@ -651,7 +652,12 @@
 
     if (cue === 3) {
       const readyImage = preloadedPhotos.get(response.id);
-      if (readyImage) $('#albumImage').src = readyImage.src;
+      if (readyImage) {
+        const albumImage = $('#albumImage');
+        albumImage.src = readyImage.src;
+        // 直式照片滿版置中（上下對稱裁切）；橫式維持完整 contain
+        albumImage.classList.toggle('portrait', readyImage.naturalHeight >= readyImage.naturalWidth);
+      }
     } else {
       setAnswer(document.querySelector(`[data-answer="${cue}"]`), model.answer);
     }
@@ -661,7 +667,7 @@
 
     const nextScene = document.querySelector(`[data-scene="${cue}"]`);
     nextScene.classList.add('active');
-    if (SOUND_CUES.has(cue)) playSting();
+    playCueSound(cue);
     attribution.textContent = `感謝 ${response.table} 桌的 ${response.nick} 提供答案`;
     startShowTimer();
     currentCue = cue;
@@ -744,8 +750,10 @@
         image.onload = resolve;
         image.onerror = reject;
       });
-      if (image.decode) await image.decode();
       if (!image.naturalWidth) throw new Error('empty image');
+      // decode() 對部分 EXIF JPEG／Safari 會偶發拒絕；onload 成功就可顯示，
+      // decode 只是預先解碼的加分項，失敗不淘汰照片
+      if (image.decode) { try { await image.decode(); } catch (_) {} }
       // 清空回答庫後才完成的 decode 不得把自己加回就緒名單
       if (responses.some((r) => r.id === response.id)) {
         photoReadyIds.add(response.id);
@@ -879,36 +887,41 @@
     else document.documentElement.requestFullscreen().catch(() => {});
   }
 
-  /* 威嚇音效：cue 1/2/3/4/7 抽選成功時播放。開頁預載＋解碼（零延遲、斷網照響）、
-     連抽蓋播、載入失敗靜默降級（音效壞了不能影響演出） */
-  const SOUND_CUES = new Set([1, 2, 3, 4, 7]);
-  const sting = { ctx: null, buffer: null, source: null, plays: 0 };
-  async function initSting() {
+  /* 場景音效：抽選成功時播放（cue 1/2/3/4/7/8 威嚇、cue 5/6 回憶）。
+     開頁預載＋解碼（零延遲、斷網照響）、新聲蓋舊聲（跨音效）、
+     單一音檔載入失敗靜默降級，不影響另一檔與演出 */
+  const CUE_SOUND_KEYS = Object.freeze([null, 'sting', 'sting', 'sting', 'sting', 'memory', 'memory', 'sting', 'sting']);
+  const SOUND_FILES = Object.freeze({ sting: '音效/威嚇音效.mp3', memory: '音效/回憶音效.mp3' });
+  const audio = { ctx: null, buffers: {}, source: null, plays: { sting: 0, memory: 0 } };
+  async function initSounds() {
     try {
-      const res = await fetch('音效/威嚇音效.mp3');
-      if (!res.ok) throw new Error('sting fetch failed');
-      const bytes = await res.arrayBuffer();
-      sting.ctx = new (window.AudioContext || window.webkitAudioContext)();
-      sting.buffer = await sting.ctx.decodeAudioData(bytes);
-    } catch (_) {
-      sting.buffer = null;
-    }
+      audio.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    } catch (_) { return; }
+    await Promise.all(Object.entries(SOUND_FILES).map(async ([key, file]) => {
+      try {
+        const res = await fetch(file);
+        if (!res.ok) throw new Error('sound fetch failed');
+        audio.buffers[key] = await audio.ctx.decodeAudioData(await res.arrayBuffer());
+      } catch (_) { /* 這一檔壞了就只有它不響 */ }
+    }));
   }
-  function unlockSting() {
-    if (sting.ctx && sting.ctx.state === 'suspended') sting.ctx.resume().catch(() => {});
+  function unlockAudio() {
+    if (audio.ctx && audio.ctx.state === 'suspended') audio.ctx.resume().catch(() => {});
   }
-  function playSting() {
-    if (!sting.ctx || !sting.buffer) return;
-    unlockSting();
-    try { if (sting.source) sting.source.stop(); } catch (_) {}
-    const source = sting.ctx.createBufferSource();
-    source.buffer = sting.buffer;
-    source.connect(sting.ctx.destination);
+  function playCueSound(cue) {
+    const key = CUE_SOUND_KEYS[cue];
+    const buffer = key ? audio.buffers[key] : null;
+    if (!audio.ctx || !buffer) return;
+    unlockAudio();
+    try { if (audio.source) audio.source.stop(); } catch (_) {}
+    const source = audio.ctx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(audio.ctx.destination);
     source.start();
-    sting.source = source;
-    sting.plays += 1;
+    audio.source = source;
+    audio.plays[key] += 1;
   }
-  initSting();
+  initSounds();
 
   /* 投影對位：↑↓ 微調 1vh（按住可連續）、Shift+↑↓ 一次 5vh、Shift+0 歸位（照 QQQQAAAA／開場彈幕慣例） */
   let yOffVh = Number(localStorage.getItem('improv-stage-yoff') || 0);
@@ -945,7 +958,7 @@
 
   addEventListener('mousemove', () => { showOperator(); scheduleOperatorHide(); });
   addEventListener('keydown', (event) => {
-    unlockSting(); // 瀏覽器自動播放政策：首次手勢解鎖音訊
+    unlockAudio(); // 瀏覽器自動播放政策：首次手勢解鎖音訊
     const isUp = event.key === 'ArrowUp' || event.key === 'Up';
     const isDown = event.key === 'ArrowDown' || event.key === 'Down';
     if (isUp || isDown) { // 對位鍵允許按住連發
