@@ -231,10 +231,11 @@
     .card-watermark { position:absolute; right:-1vw; bottom:-10vh; font-family:serif; font-size:36vh; font-weight:900; line-height:1; color:rgba(138,111,58,.08); pointer-events:none; }
     .card-top { position:relative; display:flex; align-items:center; gap:1.2vh; color:#8a6f3a; font-size:2.5vh; font-weight:800; letter-spacing:.32em; }
     .card-diamond { color:#b7975a; font-size:2.2vh; letter-spacing:0; }
-    .card-mid { position:relative; margin:auto 0; }
-    .card-name { color:#17181b; font-size:clamp(56px,9.5vh,128px); font-weight:900; letter-spacing:.02em; line-height:1.1; overflow-wrap:anywhere; }
-    .card-rule { width:14vh; height:.55vh; margin:2.2vh 0; border-radius:1vh; background:#b7a26d; }
+    .card-mid { position:relative; margin:2.5vh 0 auto; }
+    .card-name { display:inline-block; color:#17181b; font-size:clamp(56px,9.5vh,128px); font-weight:900; letter-spacing:.02em; line-height:1.1; overflow-wrap:anywhere; }
+    .card-rule { width:20vh; height:.55vh; margin:1.8vh 0; border-radius:1vh; background:#b7a26d; }
     .card-title { max-width:100%; color:#45413a; font-size:clamp(38px,6vh,80px); font-weight:850; line-height:1.2; letter-spacing:.01em; overflow-wrap:anywhere; }
+    .card-company { max-width:100%; margin-top:1.2vh; color:#6f695f; font-size:clamp(38px,6vh,80px); font-weight:800; line-height:1.2; letter-spacing:.02em; overflow-wrap:anywhere; }
     .card-foot { position:relative; display:flex; align-items:center; justify-content:space-between; border-top:1px solid #ddd6c7; padding-top:2.2vh; color:#7c766b; font-size:2.6vh; font-weight:650; letter-spacing:.06em; }
 
     /* Cue 8 · Random */
@@ -358,7 +359,7 @@
         <div class="business-card">
           <div class="card-watermark">J</div>
           <div class="card-top"><span class="card-diamond">◆</span>JOKESONEME STUDIO</div>
-          <div class="card-mid"><div class="card-name" id="cardNick"></div><div class="card-rule"></div><div class="card-title" data-answer="7"></div></div>
+          <div class="card-mid"><div><div class="card-name" id="cardNick"></div></div><div class="card-rule" id="cardRule"></div><div class="card-title" data-answer="7"></div><div class="card-company" id="cardCompany"></div></div>
           <div class="card-foot"><span>jokeonme.studio@gmail.com</span><span class="card-diamond">◆</span></div>
         </div>
       </article>
@@ -663,10 +664,16 @@
     }
     if (cue === 7) {
       $('#cardNick').textContent = response.nick;
+      $('#cardCompany').textContent = `${response.table} 股份有限公司`;
     }
 
     const nextScene = document.querySelector(`[data-scene="${cue}"]`);
     nextScene.classList.add('active');
+    if (cue === 7) {
+      // 金線長度＝暱稱寬度再長一截（需在場景顯示後量測，不得比暱稱短）
+      const nick = $('#cardNick');
+      $('#cardRule').style.width = `${Math.ceil(nick.offsetWidth + nick.offsetHeight * 0.5)}px`;
+    }
     playCueSound(cue);
     attribution.textContent = `感謝 ${response.table} 桌的 ${response.nick} 提供答案`;
     startShowTimer();
