@@ -211,7 +211,8 @@
     .letter-paper::before { content:''; position:absolute; inset:0; opacity:.18; background:repeating-linear-gradient(0deg, transparent 0 4.2vh, #bda98e 4.2vh 4.35vh); }
     .letter-dear,.letter-sign { position:relative; font-family:serif; font-size:4.6vh; font-weight:700; }
     .letter-line { position:relative; display:flex; flex-wrap:wrap; align-items:baseline; justify-content:center; gap:.35em; margin:9vh auto 0; font-family:serif; font-size:clamp(48px,8.8vh,112px); font-weight:900; line-height:1.2; text-align:center; }
-    .letter-answer { max-width:75%; font:inherit; }
+    .letter-line span:first-child { white-space:nowrap; }
+    .letter-answer { max-width:100%; font:inherit; }
     .letter-sign { margin-top:6.5vh; text-align:right; }
 
     /* Cue 6 · Music */
@@ -348,7 +349,7 @@
       </article>
 
       <article class="scene letter-scene" data-scene="5" aria-label="告白書信畫面">
-        <div class="letter-paper"><div class="letter-dear">Dear 小寶貝：</div><div class="letter-line"><span>愛情就像</span><span class="letter-answer" data-answer="5"></span></div><div class="letter-sign">永遠愛你的大壞蛋</div></div>
+        <div class="letter-paper"><div class="letter-dear">Dear 小寶貝：</div><div class="letter-line"><span>我們兩個的關係就像</span><span class="letter-answer" data-answer="5"></span></div><div class="letter-sign">永遠愛你的大壞蛋</div></div>
       </article>
 
       <article class="scene music-scene" data-scene="6" aria-label="音樂串流畫面">
