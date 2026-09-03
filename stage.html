@@ -173,13 +173,22 @@
     .line-back { font-size:4.5vh; color:#4a89c7; margin-right:2.4vw; }
     .line-avatar { width:7vh; aspect-ratio:1; border-radius:50%; display:grid; place-items:center; margin-right:1.5vw; background:#3f444b; color:#fff; font-size:2.8vh; font-weight:900; }
     .line-contact strong { display:block; font-size:3vh; } .line-contact span { color:#8b8e95; font-size:1.8vh; }
-    .line-chat { position:absolute; inset:11vh 0 0; padding:7vh 7vw; }
-    .line-time { text-align:center; color:rgba(255,255,255,.8); font-size:2vh; margin-bottom:5vh; }
-    .bubble-row { display:flex; align-items:flex-end; justify-content:flex-end; gap:1.2vw; }
-    .read { color:rgba(255,255,255,.92); font-size:1.8vh; text-align:right; line-height:1.4; }
-    .line-bubble { position:relative; max-width:76vw; padding:3.4vh 3vw; border-radius:2.2vh 0 2.2vh 2.2vh; background:#8bea68; box-shadow:0 1vh 2.6vh rgba(42,59,78,.18); }
-    .line-bubble::after { content:''; position:absolute; right:-1.3vh; top:0; border-left:1.5vh solid #8bea68; border-bottom:1.5vh solid transparent; }
+    .line-chat { position:absolute; inset:11vh 0 0; padding:6vh 7vw; }
+    .line-time { text-align:center; color:rgba(255,255,255,.8); font-size:2vh; margin-bottom:4.5vh; }
+    .bubble-row { display:flex; align-items:flex-end; gap:1.2vw; }
+    .bubble-row.incoming { justify-content:flex-start; }
+    .bubble-row.outgoing { justify-content:flex-end; margin-top:4.5vh; }
+    .line-bubble { position:relative; max-width:76vw; padding:3.4vh 3vw; box-shadow:0 1vh 2.6vh rgba(42,59,78,.18); }
+    .bubble-row.incoming .line-bubble { background:#fff; border-radius:0 2.2vh 2.2vh 2.2vh; }
+    .bubble-row.incoming .line-bubble::after { content:''; position:absolute; left:-1.3vh; top:0; border-right:1.5vh solid #fff; border-bottom:1.5vh solid transparent; }
+    .bubble-row.outgoing .line-bubble { background:#8bea68; border-radius:2.2vh 0 2.2vh 2.2vh; padding:2.6vh 2.2vw; }
+    .bubble-row.outgoing .line-bubble::after { content:''; position:absolute; right:-1.3vh; top:0; border-left:1.5vh solid #8bea68; border-bottom:1.5vh solid transparent; }
     .line-answer { max-width:100%; color:#151719; }
+    .typing-dots { display:flex; align-items:center; gap:1.3vh; }
+    .typing-dots i { width:1.5vh; height:1.5vh; border-radius:50%; background:#33511f; animation:typing-bounce 1.2s ease-in-out infinite; }
+    .typing-dots i:nth-child(2) { animation-delay:.2s; }
+    .typing-dots i:nth-child(3) { animation-delay:.4s; }
+    @keyframes typing-bounce { 0%,60%,100% { opacity:.35; transform:translateY(0); } 30% { opacity:.95; transform:translateY(-.7vh); } }
 
     /* Cue 3 · Photo（手機放大、下緣裁切，照片完整 contain） */
     .album-scene { background:radial-gradient(circle at 50% 42%, #2e3036, #0a0b0e 72%); color:#fff; }
@@ -326,7 +335,11 @@
 
       <article class="scene line-scene" data-scene="2" aria-label="LINE 對話畫面">
         <div class="line-head"><span class="line-back">‹</span><div class="line-avatar">柏</div><div class="line-contact"><strong>神秘聯絡人</strong><span>上次上線：昨天晚上</span></div></div>
-        <div class="line-chat"><div class="line-time">昨天 晚上 11:47</div><div class="bubble-row"><div class="read">已讀<br>11:48</div><div class="line-bubble"><div class="answer line-answer" data-answer="2"></div></div></div></div>
+        <div class="line-chat">
+          <div class="line-time">昨天 晚上 11:47</div>
+          <div class="bubble-row incoming"><div class="line-bubble"><div class="answer line-answer" data-answer="2"></div></div></div>
+          <div class="bubble-row outgoing"><div class="line-bubble"><div class="typing-dots"><i></i><i></i><i></i></div></div></div>
+        </div>
       </article>
 
       <article class="scene album-scene" data-scene="3" aria-label="手機隱藏相簿畫面">
