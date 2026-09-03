@@ -181,11 +181,11 @@
     .line-bubble { position:relative; max-width:76vw; padding:3.4vh 3vw; box-shadow:0 1vh 2.6vh rgba(42,59,78,.18); }
     .bubble-row.incoming .line-bubble { background:#fff; border-radius:0 2.2vh 2.2vh 2.2vh; }
     .bubble-row.incoming .line-bubble::after { content:''; position:absolute; left:-1.3vh; top:0; border-right:1.5vh solid #fff; border-bottom:1.5vh solid transparent; }
-    .bubble-row.outgoing .line-bubble { background:#8bea68; border-radius:2.2vh 0 2.2vh 2.2vh; padding:2.6vh 2.2vw; }
+    .bubble-row.outgoing .line-bubble { background:#8bea68; border-radius:2.2vh 0 2.2vh 2.2vh; }
     .bubble-row.outgoing .line-bubble::after { content:''; position:absolute; right:-1.3vh; top:0; border-left:1.5vh solid #8bea68; border-bottom:1.5vh solid transparent; }
     .line-answer { max-width:100%; color:#151719; }
-    .typing-dots { display:flex; align-items:center; gap:1.3vh; }
-    .typing-dots i { width:1.5vh; height:1.5vh; border-radius:50%; background:#33511f; animation:typing-bounce 1.2s ease-in-out infinite; }
+    .typing-dots { display:flex; align-items:center; justify-content:center; gap:2.2vh; min-height:calc(var(--answer-size) * 1.12); padding:0 2vw; }
+    .typing-dots i { width:3vh; height:3vh; border-radius:50%; background:#33511f; animation:typing-bounce 1.2s ease-in-out infinite; }
     .typing-dots i:nth-child(2) { animation-delay:.2s; }
     .typing-dots i:nth-child(3) { animation-delay:.4s; }
     @keyframes typing-bounce { 0%,60%,100% { opacity:.35; transform:translateY(0); } 30% { opacity:.95; transform:translateY(-.7vh); } }
