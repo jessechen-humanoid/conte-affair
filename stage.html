@@ -84,7 +84,7 @@
       position: relative;
       z-index: 20;
       display: grid;
-      grid-template-columns: repeat(10, minmax(0, 1fr));
+      grid-template-columns: repeat(11, minmax(0, 1fr));
       gap: .5vw;
       min-width: 0;
       min-height: 0;
@@ -120,7 +120,8 @@
       border-radius: 50%;
       background: #5f6168;
     }
-    .cue-btn.active {
+    .cue-btn.active,
+    .cue-btn.playing {
       color: #c6c8ce;
       border-color: #686a72;
       box-shadow: inset 0 0 0 1px #303138;
@@ -392,6 +393,7 @@
       <button class="cue-btn" data-cue="6"><kbd>6</kbd>Music</button>
       <button class="cue-btn" data-cue="7"><kbd>7</kbd>Card</button>
       <button class="cue-btn" data-cue="8"><kbd>8</kbd>Random</button>
+      <button class="cue-btn" data-cue="9"><kbd>9</kbd>Ending</button>
     </nav>
   </main>
 
@@ -409,7 +411,8 @@
       <button id="clearBtn">清空回答庫</button>
     </div>
     <div class="panel-keys" id="connLine" hidden>連線：—</div>
-    <div class="panel-keys">Q 掃碼頁 · 0 標題頁 · 1–8 抽 cue · C 控制台 · F 全螢幕<br>↑↓ 投影對位（Shift ×5、Shift+0 歸位）· 同一 cue 再按一次＝換答案</div>
+    <div class="panel-keys" id="bgmLine">BGM：停止</div>
+    <div class="panel-keys">Q 掃碼頁 · 0 標題頁＋懸疑襯底開／關 · 9 結尾曲開／關 · 1–8 抽 cue · C 控制台 · F 全螢幕<br>↑↓ 投影對位（Shift ×5、Shift+0 歸位）· 同一 cue 再按一次＝換答案</div>
   </aside>
 
   <script src="firebase-config.js"></script>
@@ -942,6 +945,70 @@
   }
   initSounds();
 
+  /* 背景音樂襯底：0 開關懸疑、9 開關結尾曲，兩者互斥；cue 1–8 不影響。
+     Web Audio 無縫 loop＋固定低音量 GainNode；音檔在「第一次手勢」後才 fetch＋decode，
+     開頁時完全不載（不影響 loading）。解碼未完成時按下會排隊，解好自動開始。 */
+  const BGM_FILES = Object.freeze({ suspense: '音效/企劃懸疑背景.m4a', ending: '音效/企劃結尾音樂.mp3' });
+  // 音量階層：音效 1.0 ＞ 結尾曲 0.55 ＞ 懸疑襯底 0.2（襯底不能干擾演員講話；要調整改這裡）
+  const BGM_VOLUMES = Object.freeze({ suspense: 0.2, ending: 0.55 });
+  const bgm = { current: null, buffers: {}, source: null, gain: null, loading: false, pending: null };
+  async function preloadBgm() {
+    if (bgm.loading || !audio.ctx) return;
+    bgm.loading = true;
+    await Promise.all(Object.entries(BGM_FILES).map(async ([key, file]) => {
+      try {
+        const res = await fetch(file);
+        if (!res.ok) throw new Error('bgm fetch failed');
+        bgm.buffers[key] = await audio.ctx.decodeAudioData(await res.arrayBuffer());
+      } catch (_) { /* 這一軌壞了就只有它不響 */ }
+    }));
+    if (bgm.pending) {
+      const key = bgm.pending;
+      bgm.pending = null;
+      if (bgm.buffers[key]) startBgm(key);
+      else { bgm.current = null; updateBgmUi(); showMessage('背景音樂載入失敗'); }
+    }
+  }
+  function updateBgmUi() {
+    const label = bgm.current === 'suspense' ? '懸疑襯底' : bgm.current === 'ending' ? '結尾音樂' : null;
+    $('#bgmLine').textContent = label ? `BGM：${label} ${bgm.source ? '播放中' : '載入中…'}` : 'BGM：停止';
+    cueButtons.forEach((button) => {
+      if (button.dataset.cue === '0') button.classList.toggle('playing', bgm.current === 'suspense');
+      if (button.dataset.cue === '9') button.classList.toggle('playing', bgm.current === 'ending');
+    });
+  }
+  function stopBgm() {
+    try { if (bgm.source) bgm.source.stop(); } catch (_) {}
+    bgm.source = null;
+    bgm.current = null;
+    bgm.pending = null;
+    updateBgmUi();
+  }
+  function startBgm(key) {
+    const buffer = bgm.buffers[key];
+    try { if (bgm.source) bgm.source.stop(); } catch (_) {}
+    bgm.source = null;
+    bgm.current = key;
+    if (!buffer) { bgm.pending = key; updateBgmUi(); preloadBgm(); return; }
+    unlockAudio();
+    if (!bgm.gain) {
+      bgm.gain = audio.ctx.createGain();
+      bgm.gain.connect(audio.ctx.destination);
+    }
+    bgm.gain.gain.value = BGM_VOLUMES[key];
+    const source = audio.ctx.createBufferSource();
+    source.buffer = buffer;
+    source.loop = true;
+    source.connect(bgm.gain);
+    source.start();
+    bgm.source = source;
+    updateBgmUi();
+  }
+  function toggleBgm(key) {
+    if (bgm.current === key) stopBgm();
+    else startBgm(key);
+  }
+
   /* 投影對位：↑↓ 微調 1vh（按住可連續）、Shift+↑↓ 一次 5vh、Shift+0 歸位（照 QQQQAAAA／開場彈幕慣例） */
   let yOffVh = Number(localStorage.getItem('improv-stage-yoff') || 0);
   function applyYOff() {
@@ -961,9 +1028,11 @@
   }
 
   cueButtons.forEach((button) => button.addEventListener('click', () => {
+    preloadBgm();
     if (button.dataset.cue === 'qr') { showQrScreen(); return; }
     const cue = Number(button.dataset.cue);
-    if (cue === 0) showTitle();
+    if (cue === 0) { showTitle(); toggleBgm('suspense'); }
+    else if (cue === 9) toggleBgm('ending');
     else drawCue(cue);
   }));
   $('#consoleBtn').addEventListener('click', togglePanel);
@@ -978,6 +1047,7 @@
   addEventListener('mousemove', () => { showOperator(); scheduleOperatorHide(); });
   addEventListener('keydown', (event) => {
     unlockAudio(); // 瀏覽器自動播放政策：首次手勢解鎖音訊
+    preloadBgm(); // 襯底音檔到這一刻才開始背景載入
     const isUp = event.key === 'ArrowUp' || event.key === 'Up';
     const isDown = event.key === 'ArrowDown' || event.key === 'Down';
     if (isUp || isDown) { // 對位鍵允許按住連發
@@ -989,7 +1059,8 @@
     if (event.shiftKey && event.code === 'Digit0') { yOffVh = 0; applyYOff(); showMessage('畫面位移歸零'); return; }
     if (event.repeat) return;
     if (/^[1-8]$/.test(event.key)) drawCue(Number(event.key));
-    else if (event.key === '0') showTitle();
+    else if (event.key === '0') { showTitle(); toggleBgm('suspense'); }
+    else if (event.key === '9') toggleBgm('ending');
     else if (event.key.toLowerCase() === 'q') showQrScreen();
     else if (event.key.toLowerCase() === 'c') togglePanel();
     else if (event.key.toLowerCase() === 'f') toggleFullscreen();
