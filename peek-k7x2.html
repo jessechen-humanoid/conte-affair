@@ -9,35 +9,41 @@
     :root { --bg:#0a0a0a; --ink:#FFFDF6; --yellow:#FFD166; --card:#141414; --line:rgba(255,250,235,.16); --muted:rgba(255,253,246,.55); }
     * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
     html, body { margin:0; padding:0; background:var(--bg); color:var(--ink); font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif; }
-    main { max-width:760px; margin:0 auto; padding:16px 16px 60px; }
-    header { position:sticky; top:0; z-index:5; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; background:linear-gradient(var(--bg) 80%, transparent); }
-    h1 { margin:0; font-size:18px; font-weight:800; }
+    main { max-width:1100px; margin:0 auto; padding:16px 18px 48px; }
+    header { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:8px 0 14px; }
+    h1 { margin:0; font-size:20px; font-weight:800; }
     #status { color:var(--muted); font-size:13px; line-height:1.5; }
     #status b { color:var(--yellow); font-weight:800; }
-    button { border:1.5px solid var(--yellow); border-radius:10px; padding:10px 14px; background:transparent; color:var(--yellow); font-size:14px; font-weight:700; font-family:inherit; }
+    button { border:1.5px solid var(--yellow); border-radius:10px; padding:10px 14px; background:transparent; color:var(--yellow); font-size:14px; font-weight:700; font-family:inherit; cursor:pointer; }
     button:active { background:rgba(255,209,102,.15); }
-    section { margin:14px 0; border:1px solid var(--line); border-radius:12px; background:var(--card); overflow:hidden; }
-    section > .head { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 14px 12px 12px; font-size:15px; font-weight:800; cursor:pointer;
-      border-left:6px solid var(--c); background:color-mix(in srgb, var(--c) 16%, var(--card)); }
-    section > .head .ttl { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-    section > .head .badge { display:inline-grid; place-items:center; min-width:26px; height:26px; padding:0 7px; border-radius:7px; background:var(--c); color:#111; font-size:13px; font-weight:900; }
-    section > .head .cue { color:var(--c); font-size:13px; font-weight:900; letter-spacing:.06em; }
-    section > .head .q { color:var(--ink); }
+    #tabs { display:grid; grid-template-columns:repeat(8, minmax(0,1fr)); gap:8px; margin-bottom:14px; }
+    #tabs button { display:flex; flex-direction:column; align-items:center; gap:4px; padding:10px 6px; border-color:var(--line); color:var(--muted); background:var(--card); }
+    #tabs button .badge { display:inline-grid; place-items:center; min-width:28px; height:28px; padding:0 8px; border-radius:8px; background:rgba(255,253,246,.1); color:var(--ink); font-size:14px; font-weight:900; }
+    #tabs button .cue { font-size:12px; font-weight:900; letter-spacing:.06em; white-space:nowrap; }
+    #tabs button.active { border-color:var(--yellow); background:rgba(255,209,102,.14); color:var(--yellow); }
+    #tabs button.active .badge { background:var(--yellow); color:#1a1200; }
+    section { border:1px solid var(--line); border-radius:12px; background:var(--card); overflow:hidden; }
+    section > .head { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:14px 16px 14px 14px; font-size:17px; font-weight:800;
+      border-left:6px solid var(--yellow); background:rgba(255,209,102,.14); }
+    section > .head .ttl { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    section > .head .badge { display:inline-grid; place-items:center; min-width:30px; height:30px; padding:0 8px; border-radius:8px; background:var(--yellow); color:#1a1200; font-size:15px; font-weight:900; }
+    section > .head .cue { color:var(--yellow); font-size:14px; font-weight:900; letter-spacing:.08em; }
     section > .head small { color:var(--muted); font-weight:600; font-size:12px; flex:none; }
-    section.collapsed .body { display:none; }
     .body { border-top:1px solid var(--line); }
-    .row { display:flex; justify-content:space-between; align-items:baseline; gap:10px; padding:9px 14px; border-top:1px solid rgba(255,250,235,.06); font-size:17px; line-height:1.4; }
-    .row:first-child { border-top:0; }
+    .rows { display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); }
+    .row { display:flex; justify-content:space-between; align-items:baseline; gap:10px; padding:10px 16px; border-bottom:1px solid rgba(255,250,235,.06); border-right:1px solid rgba(255,250,235,.06); font-size:18px; line-height:1.4; }
     .row .meta { flex:none; color:var(--muted); font-size:12px; }
     .row .ans { overflow-wrap:anywhere; }
-    .empty { padding:14px; color:var(--muted); font-size:14px; }
-    .photo-gate { padding:14px; }
-    .grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(110px, 1fr)); gap:8px; padding:12px; }
+    .empty { padding:16px; color:var(--muted); font-size:14px; }
+    .photo-gate { padding:16px; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:10px; padding:14px; }
     .grid figure { margin:0; }
     .grid img { display:block; width:100%; aspect-ratio:1; object-fit:cover; border-radius:8px; background:#000; }
-    .grid figcaption { margin-top:4px; color:var(--muted); font-size:11px; text-align:center; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
-    #notice { display:none; margin:14px 0; padding:12px 14px; border:1.5px solid var(--yellow); border-radius:10px; color:var(--yellow); font-size:14px; font-weight:700; line-height:1.6; }
+    .grid figcaption { margin-top:4px; color:var(--muted); font-size:12px; text-align:center; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+    #notice { display:none; margin:0 0 14px; padding:12px 14px; border:1.5px solid var(--yellow); border-radius:10px; color:var(--yellow); font-size:14px; font-weight:700; line-height:1.6; }
     #notice.show { display:block; }
+    .hint { margin-top:10px; color:var(--muted); font-size:12px; }
+    @media (max-width: 720px) { #tabs { grid-template-columns:repeat(4, minmax(0,1fr)); } .row { font-size:16px; } }
   </style>
 </head>
 <body>
@@ -50,7 +56,9 @@
       <button id="reshuffleBtn" type="button">換一批</button>
     </header>
     <div id="notice"></div>
+    <nav id="tabs" aria-label="題目切換"></nav>
     <div id="sections"></div>
+    <div class="hint">鍵盤 1–8 切換題目、0 看名單、R 換一批</div>
   </main>
 
   <script src="firebase-config.js"></script>
@@ -59,21 +67,21 @@
   const SAMPLE_SIZE = 30;
   // 依即興劇 cue 順序 1–8；2 與 8 共用同一欄位（worldMessage），合併成一區避免重複
   const SECTIONS = Object.freeze([
-    { key: 'parentTrip',    badge: '1', cue: 'MAP',           title: '最想瞬間移動到哪裡',     field: 'parentTrip',    color: '#ea4335' },
-    { key: 'worldMessage',  badge: '2＋8', cue: 'LINE／RANDOM', title: '一句會讓你感到興奮的話', field: 'worldMessage',  color: '#8bea68' },
-    { key: 'photo',         badge: '3', cue: 'PHOTO',         title: '手機裡最新的照片',       field: 'photo', photo: true, color: '#7d9cff' },
-    { key: 'shyQuestion',   badge: '4', cue: 'SEARCH',        title: '不敢問出口的問題',       field: 'shyQuestion',   color: '#4285f4' },
-    { key: 'dislikedFood',  badge: '5', cue: 'LETTER',        title: '最討厭吃的東西',         field: 'dislikedFood',  color: '#d6b76e' },
-    { key: 'song',          badge: '6', cue: 'MUSIC',         title: 'KTV 拿手歌',             field: 'song',          color: '#c56cf0' },
-    { key: 'impossibleJob', badge: '7', cue: 'CARD',          title: '最不可能存在的職業',     field: 'impossibleJob', color: '#f0c060' },
-    { key: 'people',        badge: '名單', cue: '',           title: '桌號 × 暱稱',           render: (r) => r.nick, meta: (r) => r.table, color: '#9b9da5' },
+    { key: 'parentTrip',    badge: '1',    cue: 'MAP',           title: '最想瞬間移動到哪裡',     field: 'parentTrip',   keys: ['1'] },
+    { key: 'worldMessage',  badge: '2＋8', cue: 'LINE／RANDOM',  title: '一句會讓你感到興奮的話', field: 'worldMessage', keys: ['2', '8'] },
+    { key: 'photo',         badge: '3',    cue: 'PHOTO',         title: '手機裡最新的照片',       field: 'photo', photo: true, keys: ['3'] },
+    { key: 'shyQuestion',   badge: '4',    cue: 'SEARCH',        title: '不敢問出口的問題',       field: 'shyQuestion',  keys: ['4'] },
+    { key: 'dislikedFood',  badge: '5',    cue: 'LETTER',        title: '最討厭吃的東西',         field: 'dislikedFood', keys: ['5'] },
+    { key: 'song',          badge: '6',    cue: 'MUSIC',         title: 'KTV 拿手歌',             field: 'song',         keys: ['6'] },
+    { key: 'impossibleJob', badge: '7',    cue: 'CARD',          title: '最不可能存在的職業',     field: 'impossibleJob', keys: ['7'] },
+    { key: 'people',        badge: '名單', cue: '',              title: '桌號 × 暱稱',           render: (r) => r.nick, meta: (r) => r.table, keys: ['0'] },
   ]);
 
   const $ = (s) => document.querySelector(s);
-  const responses = new Map();          // id -> response
-  const samples = new Map();            // section key -> array of ids (stable until 換一批)
-  const photoRevealed = new Set();      // section keys whose photos were requested
-  const collapsed = new Set();
+  const responses = new Map();
+  const samples = new Map();
+  const photoRevealed = new Set();
+  let activeKey = SECTIONS[0].key;
   let connected = null;
 
   function shuffled(items) {
@@ -93,8 +101,7 @@
     let current = reset ? [] : (samples.get(section.key) || []).filter((id) => poolSet.has(id));
     if (current.length < SAMPLE_SIZE) {
       const chosen = new Set(current);
-      const extra = shuffled(pool.filter((id) => !chosen.has(id))).slice(0, SAMPLE_SIZE - current.length);
-      current = current.concat(extra);
+      current = current.concat(shuffled(pool.filter((id) => !chosen.has(id))).slice(0, SAMPLE_SIZE - current.length));
     }
     samples.set(section.key, current);
     return current;
@@ -102,73 +109,83 @@
 
   function renderStatus() {
     const total = responses.size;
-    const conn = connected === false ? '（離線）' : '';
-    $('#status').innerHTML = `共 <b>${total}</b> 筆 · 每題隨機顯示 ${Math.min(SAMPLE_SIZE, total)}${conn}`;
+    $('#status').innerHTML = `共 <b>${total}</b> 筆 · 每題隨機顯示 ${Math.min(SAMPLE_SIZE, total)}${connected === false ? '（離線）' : ''}`;
   }
 
-  function renderSections(reset = false) {
+  function renderTabs() {
+    const nav = $('#tabs');
+    nav.innerHTML = '';
+    for (const section of SECTIONS) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = section.key === activeKey ? 'active' : '';
+      b.innerHTML = `<span class="badge">${section.badge}</span><span class="cue">${section.cue || section.title}</span>`;
+      b.addEventListener('click', () => { activeKey = section.key; renderAll(false); });
+      nav.appendChild(b);
+    }
+  }
+
+  function renderSection(reset = false) {
+    const section = SECTIONS.find((s) => s.key === activeKey);
+    const ids = topUpSample(section, reset);
     const root = $('#sections');
     root.innerHTML = '';
-    for (const section of SECTIONS) {
-      const ids = topUpSample(section, reset);
-      const el = document.createElement('section');
-      if (collapsed.has(section.key)) el.classList.add('collapsed');
-      const head = document.createElement('div');
-      head.className = 'head';
-      head.style.setProperty('--c', section.color);
-      head.innerHTML = `<span class="ttl"><b class="badge">${section.badge}</b>${section.cue ? `<span class="cue">${section.cue}</span>` : ''}<span class="q">${section.title}</span></span><small>${ids.length} 筆</small>`;
-      head.addEventListener('click', () => { collapsed.has(section.key) ? collapsed.delete(section.key) : collapsed.add(section.key); el.classList.toggle('collapsed'); });
-      el.appendChild(head);
-      const body = document.createElement('div');
-      body.className = 'body';
-      if (ids.length === 0) {
-        body.innerHTML = '<div class="empty">還沒有人填這題</div>';
-      } else if (section.photo && !photoRevealed.has(section.key)) {
-        const gate = document.createElement('div');
-        gate.className = 'photo-gate';
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.textContent = `顯示照片（${ids.length} 張）`;
-        btn.addEventListener('click', () => { photoRevealed.add(section.key); renderSections(); });
-        gate.appendChild(btn);
-        body.appendChild(gate);
-      } else if (section.photo) {
-        const grid = document.createElement('div');
-        grid.className = 'grid';
-        for (const id of ids) {
-          const r = responses.get(id);
-          const fig = document.createElement('figure');
-          const img = document.createElement('img');
-          img.loading = 'lazy'; img.decoding = 'async'; img.alt = r.nick; img.src = r.photo;
-          const cap = document.createElement('figcaption');
-          cap.textContent = `${r.table} ${r.nick}`;
-          fig.appendChild(img); fig.appendChild(cap); grid.appendChild(fig);
-        }
-        body.appendChild(grid);
-      } else {
-        for (const id of ids) {
-          const r = responses.get(id);
-          const row = document.createElement('div');
-          row.className = 'row';
-          const ans = document.createElement('span'); ans.className = 'ans';
-          ans.textContent = section.render ? section.render(r) : r[section.field];
-          const meta = document.createElement('span'); meta.className = 'meta';
-          meta.textContent = section.meta ? section.meta(r) : `${r.table} ${r.nick}`;
-          row.appendChild(ans); row.appendChild(meta); body.appendChild(row);
-        }
+    const el = document.createElement('section');
+    const head = document.createElement('div');
+    head.className = 'head';
+    head.innerHTML = `<span class="ttl"><b class="badge">${section.badge}</b>${section.cue ? `<span class="cue">${section.cue}</span>` : ''}<span class="q">${section.title}</span></span><small>顯示 ${ids.length} 筆</small>`;
+    el.appendChild(head);
+    const body = document.createElement('div');
+    body.className = 'body';
+    if (ids.length === 0) {
+      body.innerHTML = '<div class="empty">還沒有人填這題</div>';
+    } else if (section.photo && !photoRevealed.has(section.key)) {
+      const gate = document.createElement('div'); gate.className = 'photo-gate';
+      const btn = document.createElement('button'); btn.type = 'button'; btn.textContent = `顯示照片（${ids.length} 張）`;
+      btn.addEventListener('click', () => { photoRevealed.add(section.key); renderSection(); });
+      gate.appendChild(btn); body.appendChild(gate);
+    } else if (section.photo) {
+      const grid = document.createElement('div'); grid.className = 'grid';
+      for (const id of ids) {
+        const r = responses.get(id);
+        const fig = document.createElement('figure');
+        const img = document.createElement('img'); img.loading = 'lazy'; img.decoding = 'async'; img.alt = r.nick; img.src = r.photo;
+        const cap = document.createElement('figcaption'); cap.textContent = `${r.table} ${r.nick}`;
+        fig.appendChild(img); fig.appendChild(cap); grid.appendChild(fig);
       }
-      el.appendChild(body);
-      root.appendChild(el);
+      body.appendChild(grid);
+    } else {
+      const rows = document.createElement('div'); rows.className = 'rows';
+      for (const id of ids) {
+        const r = responses.get(id);
+        const row = document.createElement('div'); row.className = 'row';
+        const ans = document.createElement('span'); ans.className = 'ans'; ans.textContent = section.render ? section.render(r) : r[section.field];
+        const meta = document.createElement('span'); meta.className = 'meta'; meta.textContent = section.meta ? section.meta(r) : `${r.table} ${r.nick}`;
+        row.appendChild(ans); row.appendChild(meta); rows.appendChild(row);
+      }
+      body.appendChild(rows);
     }
+    el.appendChild(body);
+    root.appendChild(el);
     renderStatus();
   }
 
-  $('#reshuffleBtn').addEventListener('click', () => renderSections(true));
+  function renderAll(reset) { renderTabs(); renderSection(reset); }
+  function reshuffleAll() { samples.clear(); renderAll(true); }
+
+  $('#reshuffleBtn').addEventListener('click', reshuffleAll);
+  addEventListener('keydown', (e) => {
+    if (e.target && typeof e.target.matches === 'function' && e.target.matches('input,textarea,select')) return;
+    const hit = SECTIONS.find((s) => s.keys.includes(e.key));
+    if (hit) { activeKey = hit.key; renderAll(false); }
+    else if (e.key.toLowerCase() === 'r') reshuffleAll();
+  });
 
   let renderTimer = null;
-  function scheduleRender() { clearTimeout(renderTimer); renderTimer = setTimeout(() => renderSections(false), 150); }
+  function scheduleRender() { clearTimeout(renderTimer); renderTimer = setTimeout(() => renderAll(false), 150); }
 
   async function boot() {
+    renderAll(false);
     if (!(typeof isFirebaseConfigured === 'function' && isFirebaseConfigured())) {
       $('#notice').textContent = 'firebase-config.js 仍是佔位值，這頁沒有資料可看。';
       $('#notice').classList.add('show');
@@ -189,7 +206,7 @@
       $('#notice').textContent = 'Firebase 連線失敗，請確認網路後重新整理。';
       $('#notice').classList.add('show');
     }
-    renderSections(false);
+    renderAll(false);
   }
   boot();
   </script>
