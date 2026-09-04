@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <title>後台偷看</title>
+  <style>
+    :root { --bg:#0a0a0a; --ink:#FFFDF6; --yellow:#FFD166; --card:#141414; --line:rgba(255,250,235,.16); --muted:rgba(255,253,246,.55); }
+    * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+    html, body { margin:0; padding:0; background:var(--bg); color:var(--ink); font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif; }
+    main { max-width:760px; margin:0 auto; padding:16px 16px 60px; }
+    header { position:sticky; top:0; z-index:5; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; background:linear-gradient(var(--bg) 80%, transparent); }
+    h1 { margin:0; font-size:18px; font-weight:800; }
+    #status { color:var(--muted); font-size:13px; line-height:1.5; }
+    #status b { color:var(--yellow); font-weight:800; }
+    button { border:1.5px solid var(--yellow); border-radius:10px; padding:10px 14px; background:transparent; color:var(--yellow); font-size:14px; font-weight:700; font-family:inherit; }
+    button:active { background:rgba(255,209,102,.15); }
+    section { margin:14px 0; border:1px solid var(--line); border-radius:12px; background:var(--card); overflow:hidden; }
+    section > .head { display:flex; align-items:center; justify-content:space-between; padding:12px 14px; font-size:15px; font-weight:800; cursor:pointer; }
+    section > .head small { color:var(--muted); font-weight:600; font-size:12px; }
+    section.collapsed .body { display:none; }
+    .body { border-top:1px solid var(--line); }
+    .row { display:flex; justify-content:space-between; align-items:baseline; gap:10px; padding:9px 14px; border-top:1px solid rgba(255,250,235,.06); font-size:17px; line-height:1.4; }
+    .row:first-child { border-top:0; }
+    .row .meta { flex:none; color:var(--muted); font-size:12px; }
+    .row .ans { overflow-wrap:anywhere; }
+    .empty { padding:14px; color:var(--muted); font-size:14px; }
+    .photo-gate { padding:14px; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(110px, 1fr)); gap:8px; padding:12px; }
+    .grid figure { margin:0; }
+    .grid img { display:block; width:100%; aspect-ratio:1; object-fit:cover; border-radius:8px; background:#000; }
+    .grid figcaption { margin-top:4px; color:var(--muted); font-size:11px; text-align:center; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+    #notice { display:none; margin:14px 0; padding:12px 14px; border:1.5px solid var(--yellow); border-radius:10px; color:var(--yellow); font-size:14px; font-weight:700; line-height:1.6; }
+    #notice.show { display:block; }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <h1>後台偷看 · 短劇《復仇》</h1>
+        <div id="status">連線中…</div>
+      </div>
+      <button id="reshuffleBtn" type="button">換一批</button>
+    </header>
+    <div id="notice"></div>
+    <div id="sections"></div>
+  </main>
+
+  <script src="firebase-config.js"></script>
+  <script>
+  'use strict';
+  const SAMPLE_SIZE = 30;
+  const SECTIONS = Object.freeze([
+    { key: 'people',        title: '1–2. 桌號 × 暱稱',            render: (r) => r.nick,           meta: (r) => r.table },
+    { key: 'song',          title: '3. KTV 拿手歌',               field: 'song' },
+    { key: 'dislikedFood',  title: '4. 最討厭吃的東西',           field: 'dislikedFood' },
+    { key: 'photo',         title: '5. 手機裡最新的照片',          field: 'photo', photo: true },
+    { key: 'worldMessage',  title: '6. 一句會讓你感到興奮的話',   field: 'worldMessage' },
+    { key: 'parentTrip',    title: '7. 最想瞬間移動到哪裡',       field: 'parentTrip' },
+    { key: 'shyQuestion',   title: '8. 不敢問出口的問題',         field: 'shyQuestion' },
+    { key: 'impossibleJob', title: '9. 最不可能存在的職業',       field: 'impossibleJob' },
+  ]);
+
+  const $ = (s) => document.querySelector(s);
+  const responses = new Map();          // id -> response
+  const samples = new Map();            // section key -> array of ids (stable until 換一批)
+  const photoRevealed = new Set();      // section keys whose photos were requested
+  const collapsed = new Set();
+  let connected = null;
+
+  function shuffled(items) {
+    const out = items.slice();
+    for (let i = out.length - 1; i > 0; i -= 1) { const j = Math.floor(Math.random() * (i + 1)); [out[i], out[j]] = [out[j], out[i]]; }
+    return out;
+  }
+  function eligibleIds(section) {
+    return [...responses.values()]
+      .filter((r) => section.key === 'people' ? (r.nick && r.table) : typeof r[section.field] === 'string' && r[section.field].trim().length > 0)
+      .map((r) => r.id);
+  }
+  // 抽樣穩定：只移除消失的、只補足不夠的；「換一批」才整批重抽
+  function topUpSample(section, reset = false) {
+    const pool = eligibleIds(section);
+    const poolSet = new Set(pool);
+    let current = reset ? [] : (samples.get(section.key) || []).filter((id) => poolSet.has(id));
+    if (current.length < SAMPLE_SIZE) {
+      const chosen = new Set(current);
+      const extra = shuffled(pool.filter((id) => !chosen.has(id))).slice(0, SAMPLE_SIZE - current.length);
+      current = current.concat(extra);
+    }
+    samples.set(section.key, current);
+    return current;
+  }
+
+  function renderStatus() {
+    const total = responses.size;
+    const conn = connected === false ? '（離線）' : '';
+    $('#status').innerHTML = `共 <b>${total}</b> 筆 · 每題隨機顯示 ${Math.min(SAMPLE_SIZE, total)}${conn}`;
+  }
+
+  function renderSections(reset = false) {
+    const root = $('#sections');
+    root.innerHTML = '';
+    for (const section of SECTIONS) {
+      const ids = topUpSample(section, reset);
+      const el = document.createElement('section');
+      if (collapsed.has(section.key)) el.classList.add('collapsed');
+      const head = document.createElement('div');
+      head.className = 'head';
+      head.innerHTML = `<span>${section.title}</span><small>${ids.length} 筆</small>`;
+      head.addEventListener('click', () => { collapsed.has(section.key) ? collapsed.delete(section.key) : collapsed.add(section.key); el.classList.toggle('collapsed'); });
+      el.appendChild(head);
+      const body = document.createElement('div');
+      body.className = 'body';
+      if (ids.length === 0) {
+        body.innerHTML = '<div class="empty">還沒有人填這題</div>';
+      } else if (section.photo && !photoRevealed.has(section.key)) {
+        const gate = document.createElement('div');
+        gate.className = 'photo-gate';
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = `顯示照片（${ids.length} 張）`;
+        btn.addEventListener('click', () => { photoRevealed.add(section.key); renderSections(); });
+        gate.appendChild(btn);
+        body.appendChild(gate);
+      } else if (section.photo) {
+        const grid = document.createElement('div');
+        grid.className = 'grid';
+        for (const id of ids) {
+          const r = responses.get(id);
+          const fig = document.createElement('figure');
+          const img = document.createElement('img');
+          img.loading = 'lazy'; img.decoding = 'async'; img.alt = r.nick; img.src = r.photo;
+          const cap = document.createElement('figcaption');
+          cap.textContent = `${r.table} ${r.nick}`;
+          fig.appendChild(img); fig.appendChild(cap); grid.appendChild(fig);
+        }
+        body.appendChild(grid);
+      } else {
+        for (const id of ids) {
+          const r = responses.get(id);
+          const row = document.createElement('div');
+          row.className = 'row';
+          const ans = document.createElement('span'); ans.className = 'ans';
+          ans.textContent = section.render ? section.render(r) : r[section.field];
+          const meta = document.createElement('span'); meta.className = 'meta';
+          meta.textContent = section.meta ? section.meta(r) : `${r.table} ${r.nick}`;
+          row.appendChild(ans); row.appendChild(meta); body.appendChild(row);
+        }
+      }
+      el.appendChild(body);
+      root.appendChild(el);
+    }
+    renderStatus();
+  }
+
+  $('#reshuffleBtn').addEventListener('click', () => renderSections(true));
+
+  let renderTimer = null;
+  function scheduleRender() { clearTimeout(renderTimer); renderTimer = setTimeout(() => renderSections(false), 150); }
+
+  async function boot() {
+    if (!(typeof isFirebaseConfigured === 'function' && isFirebaseConfigured())) {
+      $('#notice').textContent = 'firebase-config.js 仍是佔位值，這頁沒有資料可看。';
+      $('#notice').classList.add('show');
+      $('#status').textContent = '未設定';
+      return;
+    }
+    try {
+      const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
+      const dbm = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js');
+      const db = dbm.getDatabase(initializeApp(firebaseConfig));
+      const ref = dbm.ref(db, `rooms/${ROOM}/responses`);
+      dbm.onChildAdded(ref, (snap) => { responses.set(snap.key, { id: snap.key, ...snap.val() }); scheduleRender(); });
+      dbm.onChildChanged(ref, (snap) => { responses.set(snap.key, { id: snap.key, ...snap.val() }); scheduleRender(); });
+      dbm.onChildRemoved(ref, (snap) => { responses.delete(snap.key); scheduleRender(); });
+      dbm.onValue(dbm.ref(db, '.info/connected'), (snap) => { connected = snap.val() === true; renderStatus(); });
+      await Promise.race([dbm.get(ref).catch(() => {}), new Promise((r) => setTimeout(r, 3000))]);
+    } catch (_) {
+      $('#notice').textContent = 'Firebase 連線失敗，請確認網路後重新整理。';
+      $('#notice').classList.add('show');
+    }
+    renderSections(false);
+  }
+  boot();
+  </script>
+</body>
+</html>
