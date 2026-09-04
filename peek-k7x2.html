@@ -17,8 +17,13 @@
     button { border:1.5px solid var(--yellow); border-radius:10px; padding:10px 14px; background:transparent; color:var(--yellow); font-size:14px; font-weight:700; font-family:inherit; }
     button:active { background:rgba(255,209,102,.15); }
     section { margin:14px 0; border:1px solid var(--line); border-radius:12px; background:var(--card); overflow:hidden; }
-    section > .head { display:flex; align-items:center; justify-content:space-between; padding:12px 14px; font-size:15px; font-weight:800; cursor:pointer; }
-    section > .head small { color:var(--muted); font-weight:600; font-size:12px; }
+    section > .head { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 14px 12px 12px; font-size:15px; font-weight:800; cursor:pointer;
+      border-left:6px solid var(--c); background:color-mix(in srgb, var(--c) 16%, var(--card)); }
+    section > .head .ttl { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    section > .head .badge { display:inline-grid; place-items:center; min-width:26px; height:26px; padding:0 7px; border-radius:7px; background:var(--c); color:#111; font-size:13px; font-weight:900; }
+    section > .head .cue { color:var(--c); font-size:13px; font-weight:900; letter-spacing:.06em; }
+    section > .head .q { color:var(--ink); }
+    section > .head small { color:var(--muted); font-weight:600; font-size:12px; flex:none; }
     section.collapsed .body { display:none; }
     .body { border-top:1px solid var(--line); }
     .row { display:flex; justify-content:space-between; align-items:baseline; gap:10px; padding:9px 14px; border-top:1px solid rgba(255,250,235,.06); font-size:17px; line-height:1.4; }
@@ -52,15 +57,16 @@
   <script>
   'use strict';
   const SAMPLE_SIZE = 30;
+  // 依即興劇 cue 順序 1–8；2 與 8 共用同一欄位（worldMessage），合併成一區避免重複
   const SECTIONS = Object.freeze([
-    { key: 'people',        title: '1–2. 桌號 × 暱稱',            render: (r) => r.nick,           meta: (r) => r.table },
-    { key: 'song',          title: '3. KTV 拿手歌',               field: 'song' },
-    { key: 'dislikedFood',  title: '4. 最討厭吃的東西',           field: 'dislikedFood' },
-    { key: 'photo',         title: '5. 手機裡最新的照片',          field: 'photo', photo: true },
-    { key: 'worldMessage',  title: '6. 一句會讓你感到興奮的話',   field: 'worldMessage' },
-    { key: 'parentTrip',    title: '7. 最想瞬間移動到哪裡',       field: 'parentTrip' },
-    { key: 'shyQuestion',   title: '8. 不敢問出口的問題',         field: 'shyQuestion' },
-    { key: 'impossibleJob', title: '9. 最不可能存在的職業',       field: 'impossibleJob' },
+    { key: 'parentTrip',    badge: '1', cue: 'MAP',           title: '最想瞬間移動到哪裡',     field: 'parentTrip',    color: '#ea4335' },
+    { key: 'worldMessage',  badge: '2＋8', cue: 'LINE／RANDOM', title: '一句會讓你感到興奮的話', field: 'worldMessage',  color: '#8bea68' },
+    { key: 'photo',         badge: '3', cue: 'PHOTO',         title: '手機裡最新的照片',       field: 'photo', photo: true, color: '#7d9cff' },
+    { key: 'shyQuestion',   badge: '4', cue: 'SEARCH',        title: '不敢問出口的問題',       field: 'shyQuestion',   color: '#4285f4' },
+    { key: 'dislikedFood',  badge: '5', cue: 'LETTER',        title: '最討厭吃的東西',         field: 'dislikedFood',  color: '#d6b76e' },
+    { key: 'song',          badge: '6', cue: 'MUSIC',         title: 'KTV 拿手歌',             field: 'song',          color: '#c56cf0' },
+    { key: 'impossibleJob', badge: '7', cue: 'CARD',          title: '最不可能存在的職業',     field: 'impossibleJob', color: '#f0c060' },
+    { key: 'people',        badge: '名單', cue: '',           title: '桌號 × 暱稱',           render: (r) => r.nick, meta: (r) => r.table, color: '#9b9da5' },
   ]);
 
   const $ = (s) => document.querySelector(s);
@@ -109,7 +115,8 @@
       if (collapsed.has(section.key)) el.classList.add('collapsed');
       const head = document.createElement('div');
       head.className = 'head';
-      head.innerHTML = `<span>${section.title}</span><small>${ids.length} 筆</small>`;
+      head.style.setProperty('--c', section.color);
+      head.innerHTML = `<span class="ttl"><b class="badge">${section.badge}</b>${section.cue ? `<span class="cue">${section.cue}</span>` : ''}<span class="q">${section.title}</span></span><small>${ids.length} 筆</small>`;
       head.addEventListener('click', () => { collapsed.has(section.key) ? collapsed.delete(section.key) : collapsed.add(section.key); el.classList.toggle('collapsed'); });
       el.appendChild(head);
       const body = document.createElement('div');
