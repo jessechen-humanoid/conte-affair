@@ -875,23 +875,38 @@
     }
   }
 
+  // 清空＝搬進 archive 再刪。archive 每 10 筆一個節點（每節點 ≤ 幾 MB），
+  // 避開 Firebase 單次寫入 16MB 上限（2026-09-04 事故：86 筆 22MB 整批寫入卡死）。
+  const ARCHIVE_CHUNK = 10;
   async function clearLiveResponses() {
     const { dbm, db, responsesRef } = live;
     const clearArmedRef = dbm.ref(db, `rooms/${ROOM}/control/clearArmed`);
+    const withTimeout = (promise, ms, label) => Promise.race([
+      promise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error(`${label} timeout`)), ms)),
+    ]);
     try {
-      await dbm.set(clearArmedRef, true);
-      const snapshot = await dbm.get(responsesRef);
-      const data = snapshot.val();
-      if (data) {
-        const archiveRef = dbm.push(dbm.ref(db, `rooms/${ROOM}/archive`));
-        await dbm.set(archiveRef, { clearedAt: dbm.serverTimestamp(), responses: data });
+      await withTimeout(dbm.set(clearArmedRef, true), 15000, 'arm');
+      const snapshot = await withTimeout(dbm.get(responsesRef), 30000, 'read');
+      const data = snapshot.val() || {};
+      const ids = Object.keys(data).sort();
+      const batch = String(Date.now());
+      for (let i = 0; i < ids.length; i += ARCHIVE_CHUNK) {
+        const chunk = {};
+        ids.slice(i, i + ARCHIVE_CHUNK).forEach((id) => { chunk[id] = data[id]; });
+        const key = `${batch}-${String(i / ARCHIVE_CHUNK).padStart(2, '0')}`;
+        showMessage(`封存中 ${Math.min(i + ARCHIVE_CHUNK, ids.length)}/${ids.length}…`);
+        await withTimeout(
+          dbm.set(dbm.ref(db, `rooms/${ROOM}/archive/${key}`), { clearedAt: dbm.serverTimestamp(), batch, chunk: i / ARCHIVE_CHUNK, responses: chunk }),
+          60000, `archive chunk ${i / ARCHIVE_CHUNK}`,
+        );
       }
-      await dbm.remove(responsesRef);
-      await dbm.set(clearArmedRef, false);
+      await withTimeout(dbm.remove(responsesRef), 30000, 'remove');
+      await withTimeout(dbm.set(clearArmedRef, false), 15000, 'disarm');
       return true;
-    } catch (_) {
+    } catch (error) {
       try { await dbm.set(clearArmedRef, false); } catch (__) {}
-      showMessage('清空失敗，資料未動，請重試');
+      showMessage(`清空失敗（${error && error.message ? error.message : '未知錯誤'}），資料未動，請重試`);
       return false;
     }
   }
