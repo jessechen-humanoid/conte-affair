@@ -949,8 +949,8 @@
      Web Audio 無縫 loop＋固定低音量 GainNode；音檔在「第一次手勢」後才 fetch＋decode，
      開頁時完全不載（不影響 loading）。解碼未完成時按下會排隊，解好自動開始。 */
   const BGM_FILES = Object.freeze({ suspense: '音效/企劃懸疑背景.m4a', ending: '音效/企劃結尾音樂.mp3' });
-  // 音量階層：音效 1.0 ＞ 結尾曲 0.55 ＞ 懸疑襯底 0.3（襯底不能干擾演員講話；要調整改這裡）
-  const BGM_VOLUMES = Object.freeze({ suspense: 0.3, ending: 0.55 });
+  // 音量階層：音效 1.0 ＞ 結尾曲 0.55 ＞ 懸疑襯底 0.4（襯底不能干擾演員講話；要調整改這裡）
+  const BGM_VOLUMES = Object.freeze({ suspense: 0.4, ending: 0.55 });
   const bgm = { current: null, buffers: {}, source: null, gain: null, loading: false, pending: null };
   async function preloadBgm() {
     if (bgm.loading || !audio.ctx) return;
